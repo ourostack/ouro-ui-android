@@ -1,0 +1,67 @@
+name: Release
+
+# Push a tag vX.Y.Z that matches gradle.properties' ouro.version (RELEASING.md). This runs the tests, builds the
+# libraries' Maven files, attaches them to the GitHub release with the notes in docs/releases/vX.Y.Z.md, and publishes
+# every release's Maven files as a static Maven repository on GitHub Pages, which needs no sign-in to read.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: The tag matches ouro.version and has notes
+        run: |
+          v="$(sed -n 's/^ouro.version=//p' gradle.properties)"
+          test "v$v" = "$GITHUB_REF_NAME" || { echo "::error::tag $GITHUB_REF_NAME but ouro.version is $v. Fix: set ouro.version in a pull request first."; exit 1; }
+          test -f "docs/releases/$GITHUB_REF_NAME.md" || { echo "::error::no docs/releases/$GITHUB_REF_NAME.md. Fix: write the notes in the version pull request."; exit 1; }
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Tests, claims and snapshots, then the Maven files
+        run: ./gradlew --no-daemon :ouro-actions:testDebugUnitTest :ouro-hx:verifyRoborazziDebug publishAllPublicationsToBuildRepository
+      - name: Package
+        run: |
+          (cd build/maven && zip -qr "../../ouro-ui-android-$GITHUB_REF_NAME-maven.zip" .)
+          find build/maven -name "*.aar" -o -name "*.pom" | xargs -I{} cp {} .
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Ouro UI for Android $GITHUB_REF_NAME" \
+            --notes-file "docs/releases/$GITHUB_REF_NAME.md" \
+            "ouro-ui-android-$GITHUB_REF_NAME-maven.zip" ./*.aar ./*.pom
+      - name: Every release's Maven files, as one repository
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p site/maven old
+          for tag in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
+            gh release download "$tag" --pattern "ouro-ui-android-$tag-maven.zip" --dir old || true
+          done
+          for z in old/*.zip; do [ -f "$z" ] && unzip -qo "$z" -d site/maven; done
+          cp -R build/maven/. site/maven/
+          printf '<!doctype html><meta charset="utf-8"><title>Ouro UI for Android</title><p>Maven repository for <a href="https://github.com/ourostack/ouro-ui-android">ouro-ui-android</a>: <code>maven { url = uri("https://ourostack.github.io/ouro-ui-android/maven") }</code></p>\n' > site/index.html
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: pages
+        uses: actions/deploy-pages@v4
