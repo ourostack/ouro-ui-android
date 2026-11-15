@@ -40,12 +40,12 @@ adb shell dumpsys power | grep -iE "wakefulness|mWakefulness" > "$EV/power.txt" 
 shot() {
   local name="$1"; shift
   adb shell am force-stop bot.ouro.shop
-  adb shell am start -W -n bot.ouro.shop/.MainActivity "$@" > /dev/null
+  adb shell run-as bot.ouro.shop rm -f files/photo.png
+  adb shell am start -W -n bot.ouro.shop/.MainActivity --ez photo true "$@" > /dev/null
   sleep 6
-  # The emulator takes the picture from the host where it can; the test image has no host screenshot, so then the guest does.
-  adb emu screenrecord screenshot "$EV/$name.png" > /dev/null 2>&1
-  [ -s "$EV/$name.png" ] || adb exec-out screencap -p > "$EV/$name.png"
-  [ -s "$EV/$name.png" ] || echo "::warning::no picture of $name"
+  # The app draws its own window: the host has no screenshot of the test image, and screencap aborts in it.
+  adb exec-out run-as bot.ouro.shop cat files/photo.png > "$EV/$name.png"
+  [ "$(head -c 4 "$EV/$name.png" | tail -c 3)" = "PNG" ] || echo "::warning::no picture of $name"
 }
 shot shop-light --ez dark false
 shot gallery-light --es screen gallery --ez dark false --ez contrast false
