@@ -1,3 +1,9 @@
+<!-- ourostack:brand:start -->
+<p align="center">
+  <a href="https://github.com/ourostack"><img src="https://raw.githubusercontent.com/ourostack/.github/main/brand/headers/ouro-ui-android.webp" alt="Ouro resting his chin on a greenhouse seed tray where phones grow like seedlings, while a small robot lifts one out to check it" width="100%"></a>
+</p>
+<!-- ourostack:brand:end -->
+
 # Ouro UI for Android
 
 Ouro UI's native kit for Android: core's components in Jetpack Compose for people, and AppFunctions for agents, both from [ouro-ui-core](https://github.com/ourostack/ouro-ui-core)'s one `defineAction` declaration. The X-ray checks that what agents can call and what people can press agree.
