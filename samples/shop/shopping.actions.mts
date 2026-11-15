@@ -1,6 +1,6 @@
 // Ouro Shop's actions: a synthetic shopping list, one action per agent-relevant consent class. Every door in the
 // sample (its buttons and its AppFunctions) is generated from these declarations:
-//   node tools/ouro-actions-android.mts generate samples/shop/shopping.actions.mts samples/shop/src/main/kotlin/bot/ouro/shop/actions
+//   node vendor/core/ouro-actions-android.mts generate samples/shop/shopping.actions.mts samples/shop/src/main/kotlin/bot/ouro/shop/actions
 import { defineAction, defineActions, field } from "../../vendor/core/ouro-actions.mts";
 
 export const addShoppingListItem = defineAction({

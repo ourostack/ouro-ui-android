@@ -1,6 +1,6 @@
 // The Android projection of the one action model: what a Compose app needs so that agents reach, through AppFunctions,
-// the same actions a person presses. It lives here until it is proven on CI's emulator, then moves into
-// ouro-ui-core beside ouro-actions-windows.mts (the 2026-11-14 native-kits decision).
+// the same actions a person presses. Proven on an emulator in ourostack/ouro-ui-android's CI, whose ouro-actions
+// library is the runtime the generated Kotlin calls (docs/decisions/2026-11-14-native-kits.md).
 //
 // From an action set and the app's Android options it writes:
 //   OuroActions.kt  each action as an OuroAction (ouro-actions' runtime) with its Input and Output types, the set's
@@ -20,7 +20,7 @@
 import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { ACTIONS_VERSION, names, refusal, type Action, type ActionSet, type Field } from "../vendor/core/ouro-actions.mts";
+import { ACTIONS_VERSION, names, refusal, type Action, type ActionSet, type Field } from "./ouro-actions.mts";
 
 const GENERATOR = `ouro-actions-android ${ACTIONS_VERSION}`;
 
@@ -71,7 +71,7 @@ const flat = (fields: Record<string, Field>) => Object.entries(fields).filter(([
 /** The AppFunction's parameters: what a person's door would take, flat. */
 const params = (a: Action) => Object.entries(a.input).filter(([, f]) => !f.protocolOnly && !structured(f));
 
-function checkOptions(value: unknown): AndroidOptions {
+export function checkOptions(value: unknown): AndroidOptions {
   const r = (typeof value === "object" && value !== null ? value : {}) as Record<string, unknown>;
   const problems: string[] = [];
   const pkg = r["package"];
