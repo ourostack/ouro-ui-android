@@ -1,0 +1,5 @@
+# LF everywhere: vendored files must match core's bytes (scripts/provenance.mjs).
+* text=auto eol=lf
+*.jar binary
+*.png binary
+gradlew.bat text eol=crlf
