@@ -1,9 +1,15 @@
 // Three screens, picked by the launch intent so CI can photograph each: the list (people's door), the components in
 // every tone and variant, and the agent console (agents' door).
 //   adb shell am start -n bot.ouro.shop/.MainActivity --es screen agent --ez dark true --ez contrast true --es theme pearl
+// A debug build started with --ez photo true also draws its window into files/photo.png: on CI's emulator neither the
+// host nor screencap can take a picture.
 package bot.ouro.shop
 
+import android.content.pm.ApplicationInfo
+import android.graphics.Bitmap
 import android.os.Bundle
+import androidx.core.view.drawToBitmap
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -73,6 +79,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
             }
+        }
+        if (intent.getBooleanExtra("photo", false) && (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            window.decorView.postDelayed({
+                val picture = window.decorView.drawToBitmap()
+                File(filesDir, "photo.png").outputStream().use { picture.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            }, 3000)
         }
     }
 }
