@@ -119,7 +119,8 @@ class ClaimsTest {
             val l = layouts.firstOrNull()
             val text = l?.layoutInput?.text?.text ?: ""
             val ok = l != null && !l.hasVisualOverflow && (text != LONG || l.lineCount > 1)
-            ok to "\"${text.take(24)}\": ${l?.lineCount} lines, overflow ${l?.hasVisualOverflow}"
+            ok to "\"${text.take(24)}\": ${l?.lineCount} lines, overflow ${l?.hasVisualOverflow}" +
+                (if (l != null && l.hasVisualOverflow) " (width ${l.didOverflowWidth}, height ${l.didOverflowHeight}; size ${l.size}, text ${l.multiParagraph.width}x${l.multiParagraph.height}, ${l.layoutInput.constraints})" else "")
         }
         under(LIGHT)
         return all(checks, "$kind texts at 200% in a 240 dp column wrap, none clipped")

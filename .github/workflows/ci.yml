@@ -117,7 +117,9 @@ jobs:
           unzip -l samples/shop/build/outputs/apk/debug/shop-debug.apk | grep -iE "app_function|\.xsd" | tee "$EV/apk-appfunction-files.txt"
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 37.0
+          # The action names the SDK platform after api-level and has no android-37 package, so the image is set apart.
+          api-level: 36
+          system-image-api-level: 37.0
           target: google_apis
           arch: x86_64
           disable-animations: false
