@@ -17,6 +17,18 @@ sleep 20
 ./gradlew --no-daemon :samples:shop:connectedDebugAndroidTest
 code=$?
 cp -r samples/shop/build/outputs/androidTest-results "$EV/" 2>/dev/null || true
+# What the test APK says it instruments, which user Android runs, and the same tests run by hand with both APKs in place.
+{
+  aapt2="$(ls -d "$ANDROID_HOME"/build-tools/*/aapt2 | sort -V | tail -1)"
+  "$aapt2" dump xmltree --file AndroidManifest.xml samples/shop/build/outputs/apk/androidTest/debug/shop-debug-androidTest.apk | grep -A4 instrumentation
+  adb shell pm list users
+  adb shell am get-current-user
+  adb install -r samples/shop/build/outputs/apk/debug/shop-debug.apk
+  adb install -r -t samples/shop/build/outputs/apk/androidTest/debug/shop-debug-androidTest.apk
+  adb shell pm list instrumentation
+  adb shell pm path bot.ouro.shop
+  adb shell am instrument -w -r bot.ouro.shop.test/androidx.test.runner.AndroidJUnitRunner
+} > "$EV/instrument-by-hand.txt" 2>&1
 cp -r samples/shop/build/reports/androidTests "$EV/" 2>/dev/null || true
 # A run where Android fell over before any test started passes Gradle with zero tests; that is not a pass.
 ran=$(grep -ho 'tests="[0-9]*"' samples/shop/build/outputs/androidTest-results/connected/debug/*.xml 2>/dev/null | head -1 | tr -dc 0-9)
