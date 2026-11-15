@@ -118,9 +118,11 @@ jobs:
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           # The action names the SDK platform after api-level and has no android-37 package, so the image is set apart.
+          # Google's test image (ATD): on the google_apis image, surfaceflinger's region sampling for the launcher aborts
+          # under software rendering (hasReadColorBufferDma) and takes system_server down with it, every time.
           api-level: 36
           system-image-api-level: "37.0"
-          target: google_apis
+          target: google_atd
           arch: x86_64
           profile: pixel_6
           cores: 4

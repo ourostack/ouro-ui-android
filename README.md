@@ -42,7 +42,7 @@ AppFunctions need compileSdk 37 and AGP 9.1 or later. Google lists Android 16 (A
 ## What CI proves
 
 - **build:** `ouro-actions`' runtime tests, and core's claims for every component in Robolectric. The claims are names and roles in the semantics tree, 48 dp touch targets, reduced motion, text that reflows at 200%, and contrast in all six themes with pixels sampled. It also checks the snapshots in light, dark, increased contrast and 200% text.
-- **emulator:** the sample on an Android 17 emulator. The X-ray compares what Android indexed against the declarations, then CI photographs each screen.
+- **emulator:** the sample on an Android 17 emulator, Google's automated-test image (ATD). The X-ray compares what Android indexed against the declarations, then CI photographs each screen.
 - **generated:** the vendored core files match their release by SHA-256, and the sample's generated Kotlin matches its declarations.
 
 ## License
