@@ -14,7 +14,7 @@ The maintainer owns no Android phone or tablet. Everything in this repository is
 |---|---|
 | `ouro-hx` (`bot.ouro.ui:ouro-hx`) | `OuroTheme` from core's tokens (six themes, light and dark, increased contrast, reduce motion), and `OuroButton`, `OuroBadge`, `OuroCard` and `OuroItem`, Apple's first set. |
 | `ouro-actions` (`bot.ouro.ui:ouro-actions`) | The runtime behind every action. A person's press and an agent's AppFunction call take one path. A person-only action refuses agents with core's typed refusal, and a consequential one is refused until the person confirms. |
-| `tools/ouro-actions-android.mts` | The generator: action declarations become `OuroActions.kt` (an AppFunction per action an agent may call, none for person-only) and `doors.json` (which door carries which action, and why not). |
+| `vendor/core/ouro-actions-android.mts` | Core's Android generator, vendored from its release by SHA-256: action declarations become `OuroActions.kt` (an AppFunction per action an agent may call, none for person-only) and `doors.json` (which door carries which action, and why not). |
 | `samples/shop` | A shopping list that declares its actions once and opens both doors. CI runs its X-ray on an emulator. |
 
 ## Use it
@@ -37,7 +37,7 @@ OuroTheme(OuroThemeName.Pearl, dark = isSystemInDarkTheme()) {
 }
 ```
 
-AppFunctions need compileSdk 37 and AGP 9.1 or later. Google lists Android 16 (API 36) and later. On CI's API 36 emulator image Android indexed none of the sample's AppFunctions, so CI checks them on Android 17 (API 37). To give agents your actions, declare them once as `shopping.actions.mts` does, then run the generator into your app's sources (`node tools/ouro-actions-android.mts generate <actions.mts> <dir>`, Node 22.18 or later). Declare the generated `<Set>AppFunctionService` in your manifest, as `samples/shop/src/main/AndroidManifest.xml` does.
+AppFunctions need compileSdk 37 and AGP 9.1 or later. Google lists Android 16 (API 36) and later. On CI's API 36 emulator image Android indexed none of the sample's AppFunctions, so CI checks them on Android 17 (API 37). To give agents your actions, declare them once as `shopping.actions.mts` does, then run core's generator into your app's sources. Take `ouro-actions.mts` and `ouro-actions-android.mts` from a [core release](https://github.com/ourostack/ouro-ui-core/releases) into one folder and run `node ouro-actions-android.mts generate <actions.mts> <dir>` (Node 22.18 or later). Declare the generated `<Set>AppFunctionService` in your manifest, as `samples/shop/src/main/AndroidManifest.xml` does.
 
 ## What CI proves
 

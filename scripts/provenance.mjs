@@ -20,6 +20,7 @@ const [cmd, tag] = process.argv.slice(2);
 /** Where each file here comes from in a core release's dist/. */
 const MAP = {
   "vendor/core/ouro-actions.mts": "dist/actions/ouro-actions.mts",
+  "vendor/core/ouro-actions-android.mts": "dist/actions/ouro-actions-android.mts",
   "vendor/core/components.claims.json": "dist/hx/components.claims.json",
   "vendor/core/components/component.schema.json": "dist/hx/components/component.schema.json",
   "vendor/core/components/button.spec.json": "dist/hx/components/button.spec.json",
