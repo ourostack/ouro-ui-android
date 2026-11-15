@@ -18,6 +18,9 @@ sleep 20
 code=$?
 cp -r samples/shop/build/outputs/androidTest-results "$EV/" 2>/dev/null || true
 cp -r samples/shop/build/reports/androidTests "$EV/" 2>/dev/null || true
+# A run where Android fell over before any test started passes Gradle with zero tests; that is not a pass.
+ran=$(grep -ho 'tests="[0-9]*"' samples/shop/build/outputs/androidTest-results/connected/debug/*.xml 2>/dev/null | head -1 | tr -dc 0-9)
+if [ "${ran:-0}" -eq 0 ]; then echo "::error::the X-ray ran no tests on the emulator"; code=1; fi
 
 adb install -r samples/shop/build/outputs/apk/debug/shop-debug.apk
 # Android indexes a newly installed app's AppFunctions in the background; wait up to two minutes for them.
