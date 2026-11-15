@@ -1,0 +1,31 @@
+{
+  "generator": "ouro-actions-android 0.13.1",
+  "set": "shopping",
+  "actions": {
+    "add_shopping_list_item": {
+      "person": {
+        "carries": true
+      },
+      "appFunction": {
+        "carries": true
+      }
+    },
+    "share_shopping_list": {
+      "person": {
+        "carries": true
+      },
+      "appFunction": {
+        "carries": true
+      }
+    },
+    "place_grocery_order": {
+      "person": {
+        "carries": true
+      },
+      "appFunction": {
+        "carries": false,
+        "why": "person-only: only the person starts it, so it has no AppFunction, and a bridge that relays a call to it answers core's typed refusal"
+      }
+    }
+  }
+}
