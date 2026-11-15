@@ -31,6 +31,12 @@ for _ in $(seq 1 24); do
 done
 adb shell dumpsys app_function > "$EV/dumpsys-app-function.txt" 2>&1 || true
 
+# The test image boots with the screen off, which photographs black: wake it, keep it on, and drop the keyguard.
+adb shell svc power stayon true
+adb shell input keyevent KEYCODE_WAKEUP
+adb shell wm dismiss-keyguard
+adb shell dumpsys power | grep -iE "wakefulness|mWakefulness" > "$EV/power.txt" 2>&1 || true
+
 shot() {
   local name="$1"; shift
   adb shell am force-stop bot.ouro.shop
