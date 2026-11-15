@@ -6,6 +6,7 @@ EV="${EV:-evidence}"
 mkdir -p "$EV"
 adb shell getprop ro.build.version.release > "$EV/android-version.txt"
 adb shell getprop ro.build.version.sdk >> "$EV/android-version.txt"
+adb shell cmd app_function help > "$EV/cmd-app-function-help.txt" 2>&1 || true
 
 ./gradlew --no-daemon :samples:shop:connectedDebugAndroidTest
 code=$?
@@ -14,7 +15,8 @@ cp -r samples/shop/build/reports/androidTests "$EV/" 2>/dev/null || true
 
 adb install -r samples/shop/build/outputs/apk/debug/shop-debug.apk
 sleep 5
-adb shell cmd app_function list-app-functions > "$EV/cmd-app-function-list.txt" 2>&1 || true
+adb shell cmd app_function list-app-functions --package bot.ouro.shop > "$EV/cmd-app-function-list.txt" 2>&1 || true
+adb shell dumpsys app_function > "$EV/dumpsys-app-function.txt" 2>&1 || true
 
 shot() {
   local name="$1"; shift

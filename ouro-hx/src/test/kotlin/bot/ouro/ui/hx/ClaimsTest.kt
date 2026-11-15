@@ -47,10 +47,12 @@ class ClaimsTest {
 
     private var setting by mutableStateOf(LIGHT)
     private var long by mutableStateOf(false)
+    private var only by mutableStateOf<String?>(null)
 
-    private fun under(s: Setting, isLong: Boolean = false) {
+    private fun under(s: Setting, isLong: Boolean = false, just: String? = null) {
         setting = s
         long = isLong
+        only = just
         rule.waitForIdle()
     }
 
@@ -107,7 +109,7 @@ class ClaimsTest {
     }
 
     private fun textReflows(kind: String): Result {
-        under(TEXT_200, isLong = true)
+        under(TEXT_200, isLong = true, just = kind)
         val roots = nodes(kind)
         val texts = rule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true).fetchSemanticsNodes()
             .filter { t -> generateSequence(t) { it.parent }.any { p -> roots.any { it.id == p.id } } }
@@ -170,7 +172,7 @@ class ClaimsTest {
 
     @Test
     fun every_claim_core_makes_for_the_kits_components_passes_on_android() {
-        rule.setContent { Gallery(setting, long = long) }
+        rule.setContent { Gallery(setting, only = only, long = long) }
         val specs = File("../vendor/core/components").listFiles { f -> f.name.endsWith(".spec.json") }!!
             .map { JSONObject(it.readText()) }.filter { it.getString("name") in kit }
         assertTrue("no vendored spec for ${kit - specs.map { it.getString("name") }.toSet()}. Fix: node scripts/provenance.mjs update <core tag>.", specs.size == kit.size)

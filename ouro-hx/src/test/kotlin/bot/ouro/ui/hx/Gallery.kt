@@ -1,12 +1,17 @@
 package bot.ouro.ui.hx
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -48,7 +53,10 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false) {
         CompositionLocalProvider(LocalDensity provides Density(density.density, setting.fontScale)) {
             val c = Ouro.look.colors
             Column(
-                Modifier.testTag("gallery").background(c.background).padding(16.dp).then(if (long) Modifier.width(240.dp) else Modifier),
+                // Long words at 200% run far past the window, so the long gallery scrolls: every component gets the height it asks
+                // for, as in an app, and none is squeezed to nothing below the fold.
+                Modifier.testTag("gallery").then(if (long) Modifier.verticalScroll(rememberScrollState()) else Modifier)
+                    .background(c.background).padding(16.dp).then(if (long) Modifier.width(240.dp) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 if (only == null || only == "button") {
@@ -86,7 +94,8 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false) {
                             Modifier.testTag("item-case-pressable-with-badge"),
                             description = "3 hours, serves six",
                             mediaSize = OuroMediaSize.Icon,
-                            media = { BasicText("*", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 20.sp)) },
+                            // An icon-sized picture, not words: icons keep their size when text grows.
+                            media = { Box(Modifier.size(20.dp).background(LocalOuroContentColor.current, CircleShape)) },
                             actions = { OuroBadge("New", tone = OuroTone.Primary, variant = OuroVariant.Soft) },
                             onPress = {},
                         )

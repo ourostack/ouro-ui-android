@@ -90,7 +90,7 @@ jobs:
           path: build/maven
 
   emulator:
-    # The sample on an Android 16 emulator (API 36, x86_64, KVM on a free Linux runner): the X-ray checks the
+    # The sample on an Android 17 emulator (API 37, x86_64, KVM on a free Linux runner): the X-ray checks the
     # AppFunctions Android indexed against the declarations and the buttons on screen, then CI photographs each screen.
     # The maintainer owns no Android device; this is where the kit runs on Android.
     name: emulator
@@ -111,10 +111,13 @@ jobs:
           java-version: 21
       - uses: gradle/actions/setup-gradle@v4
       - name: Build the app and its tests before the emulator starts
-        run: ./gradlew --no-daemon :samples:shop:assembleDebug :samples:shop:assembleDebugAndroidTest
+        run: |
+          ./gradlew --no-daemon :samples:shop:assembleDebug :samples:shop:assembleDebugAndroidTest
+          mkdir -p "$EV"
+          unzip -l samples/shop/build/outputs/apk/debug/shop-debug.apk | grep -iE "app_function|\.xsd" | tee "$EV/apk-appfunction-files.txt"
       - uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 36
+          api-level: 37.0
           target: google_apis
           arch: x86_64
           disable-animations: false
