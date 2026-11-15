@@ -119,7 +119,7 @@ jobs:
         with:
           # The action names the SDK platform after api-level and has no android-37 package, so the image is set apart.
           api-level: 36
-          system-image-api-level: 37.0
+          system-image-api-level: "37.0"
           target: google_apis
           arch: x86_64
           disable-animations: false

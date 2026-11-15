@@ -113,14 +113,23 @@ class ClaimsTest {
         val roots = nodes(kind)
         val texts = rule.onAllNodes(SemanticsMatcher.keyIsDefined(SemanticsActions.GetTextLayoutResult), useUnmergedTree = true).fetchSemanticsNodes()
             .filter { t -> generateSequence(t) { it.parent }.any { p -> roots.any { it.id == p.id } } }
+        // Clipped means a glyph falls outside the box the text is given. Compose's hasVisualOverflow can't say that
+        // here: the layout the semantics hand back is measured at the column's full width, so a short line it then
+        // shrinks to fit reads as overflowing. Each line's right edge and the last line's bottom are compared with the
+        // text's own box, and that box with its component's.
         val checks = texts.map { t ->
             val layouts = mutableListOf<TextLayoutResult>()
             t.config[SemanticsActions.GetTextLayoutResult].action?.invoke(layouts)
             val l = layouts.firstOrNull()
             val text = l?.layoutInput?.text?.text ?: ""
-            val ok = l != null && !l.hasVisualOverflow && (text != LONG || l.lineCount > 1)
-            ok to "\"${text.take(24)}\": ${l?.lineCount} lines, overflow ${l?.hasVisualOverflow}" +
-                (if (l != null && l.hasVisualOverflow) " (width ${l.didOverflowWidth}, height ${l.didOverflowHeight}; size ${l.size}, text ${l.multiParagraph.width}x${l.multiParagraph.height}, ${l.layoutInput.constraints})" else "")
+            val root = roots.first { r -> generateSequence(t) { it.parent }.any { it.id == r.id } }
+            val widest = l?.let { (0 until it.lineCount).maxOf { i -> it.getLineRight(i) - it.getLineLeft(i) } } ?: 0f
+            val inBox = l != null && widest <= t.size.width + 1 && l.getLineBottom(l.lineCount - 1) <= t.size.height + 1
+            val b = t.boundsInRoot
+            val rb = root.boundsInRoot
+            val inComponent = b.left >= rb.left - 1 && b.right <= rb.right + 1 && b.top >= rb.top - 1 && b.bottom <= rb.bottom + 1
+            val ok = inBox && inComponent && (text != LONG || l!!.lineCount > 1)
+            ok to "\"${text.take(24)}\": ${l?.lineCount} lines, widest ${"%.0f".format(widest)} of ${t.size.width} px, inside its ${kind} $inComponent"
         }
         under(LIGHT)
         return all(checks, "$kind texts at 200% in a 240 dp column wrap, none clipped")
