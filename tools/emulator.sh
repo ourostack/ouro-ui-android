@@ -7,6 +7,12 @@ mkdir -p "$EV"
 adb shell getprop ro.build.version.release > "$EV/android-version.txt"
 adb shell getprop ro.build.version.sdk >> "$EV/android-version.txt"
 adb shell cmd app_function help > "$EV/cmd-app-function-help.txt" 2>&1 || true
+# Booted is not settled: wait until the package manager and activity manager answer, then a little longer.
+for _ in $(seq 1 60); do
+  adb shell cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN > /dev/null 2>&1 && break
+  sleep 2
+done
+sleep 20
 
 ./gradlew --no-daemon :samples:shop:connectedDebugAndroidTest
 code=$?
@@ -39,4 +45,5 @@ shot gallery-cookbook --es screen gallery --es theme cookbook --ez dark false
 shot agent-console --es screen agent --ez dark false
 adb shell am force-stop bot.ouro.shop
 adb logcat -d | grep -iE "appfunction|appsearch.*(index|app_?fun)" | tail -300 > "$EV/logcat-appfunctions.txt" || true
+adb logcat -b crash -d > "$EV/logcat-crash.txt" 2>&1 || true
 exit $code
