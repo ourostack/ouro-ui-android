@@ -1,0 +1,127 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  attribution:
+    # No AI attribution in a pull request's commits (AGENTS.md); ouro-ui-core's check, open to human collaborators.
+    name: attribution
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+          filter: tree:0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - env:
+          BASE_REF: ${{ github.base_ref }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/attribution.mjs "origin/$BASE_REF" "$PR_HEAD"
+
+  generated:
+    # The vendored core files match their release, by SHA-256, and the sample's Android projection matches its declarations.
+    name: generated
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/provenance.mjs check
+      - run: node tools/ouro-actions-android.mts check samples/shop/shopping.actions.mts samples/shop/src/main/kotlin/bot/ouro/shop/actions
+
+  build:
+    # ouro-actions' runtime tests; ouro-hx's claims (Robolectric: semantics, reports and pixels) and its snapshots in
+    # light, dark, increased contrast and 200% text; the sample app and the libraries' Maven files.
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests, claims and snapshots
+        id: test
+        run: |
+          if ls ouro-hx/src/test/snapshots/*.png > /dev/null 2>&1; then
+            ./gradlew --no-daemon :ouro-actions:testDebugUnitTest :ouro-hx:verifyRoborazziDebug
+          else
+            echo "::warning::No snapshots committed yet: recording them. Commit ouro-hx/src/test/snapshots from this run's artifact."
+            ./gradlew --no-daemon :ouro-actions:testDebugUnitTest :ouro-hx:recordRoborazziDebug
+          fi
+      - name: Claims summary
+        if: ${{ !cancelled() }}
+        run: cat ouro-hx/build/ouro/claims.md >> "$GITHUB_STEP_SUMMARY" || echo "no claims report" >> "$GITHUB_STEP_SUMMARY"
+      - name: Sample app and Maven files
+        run: ./gradlew --no-daemon :samples:shop:assembleDebug publishAllPublicationsToBuildRepository
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: snapshots
+          path: |
+            ouro-hx/src/test/snapshots
+            ouro-hx/build/outputs/roborazzi
+            ouro-hx/build/ouro
+            ouro-hx/build/reports/tests
+            ouro-actions/build/reports/tests
+      - uses: actions/upload-artifact@v4
+        with:
+          name: maven
+          path: build/maven
+
+  emulator:
+    # The sample on an Android 16 emulator (API 36, x86_64, KVM on a free Linux runner): the X-ray checks the
+    # AppFunctions Android indexed against the declarations and the buttons on screen, then CI photographs each screen.
+    # The maintainer owns no Android device; this is where the kit runs on Android.
+    name: emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      EV: ${{ github.workspace }}/evidence
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build the app and its tests before the emulator starts
+        run: ./gradlew --no-daemon :samples:shop:assembleDebug :samples:shop:assembleDebugAndroidTest
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          disable-animations: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: ./tools/emulator.sh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: emulator-evidence
+          path: evidence

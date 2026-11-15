@@ -1,0 +1,37 @@
+{
+  "coreTag": "v0.13.1",
+  "files": {
+    "vendor/core/ouro-actions.mts": {
+      "from": "dist/actions/ouro-actions.mts",
+      "sha256": "ec93fa27d81f7c4802396a904dfc6c52e0d3319bf5ef85f19b38487d54800717"
+    },
+    "vendor/core/components.claims.json": {
+      "from": "dist/hx/components.claims.json",
+      "sha256": "d634ea48cae87fb445bc2e072d0a4def5eb289bf5767a6aef4aa6cdd79fb5aa3"
+    },
+    "vendor/core/components/component.schema.json": {
+      "from": "dist/hx/components/component.schema.json",
+      "sha256": "805f33e08eb2be861f7bf02f42e05f8649599ce96b0ed4471faf8b7c40d19d27"
+    },
+    "vendor/core/components/button.spec.json": {
+      "from": "dist/hx/components/button.spec.json",
+      "sha256": "8e7e7d6357268e204f32194462f8f949763be0fd0cf84138458c31ed35565cd9"
+    },
+    "vendor/core/components/badge.spec.json": {
+      "from": "dist/hx/components/badge.spec.json",
+      "sha256": "150b1746628e3f89e8417eae30349d19f7d231791a004470d1ff42c7fd82580c"
+    },
+    "vendor/core/components/card.spec.json": {
+      "from": "dist/hx/components/card.spec.json",
+      "sha256": "195f2ebcb4363d3fce015f3496065289732d1e9a2d05522b3123a6f745c186e9"
+    },
+    "vendor/core/components/item.spec.json": {
+      "from": "dist/hx/components/item.spec.json",
+      "sha256": "698c8ef847161729d0a284204777c733da64f083e864014167dcaed1d0a74f4b"
+    },
+    "ouro-hx/src/main/kotlin/bot/ouro/ui/hx/tokens/OuroTokens.kt": {
+      "from": "dist/android/OuroTokens.kt",
+      "sha256": "cdb4336eef1d0b2e7a872ef602a24e7d71e37b530a73b11e5ee79ed6a7e0782d"
+    }
+  }
+}

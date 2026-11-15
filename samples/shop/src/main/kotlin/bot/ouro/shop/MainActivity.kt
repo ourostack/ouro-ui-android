@@ -1,0 +1,146 @@
+// Three screens, picked by the launch intent so CI can photograph each: the list (people's door), the components in
+// every tone and variant, and the agent console (agents' door).
+//   adb shell am start -n bot.ouro.shop/.MainActivity --es screen agent --ez dark true --ez contrast true --es theme pearl
+package bot.ouro.shop
+
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import bot.ouro.shop.actions.AddShoppingListItem
+import bot.ouro.shop.actions.AddShoppingListItemInput
+import bot.ouro.shop.actions.PlaceGroceryOrder
+import bot.ouro.shop.actions.PlaceGroceryOrderInput
+import bot.ouro.shop.actions.ShareShoppingList
+import bot.ouro.shop.actions.ShareShoppingListInput
+import bot.ouro.ui.hx.Ouro
+import bot.ouro.ui.hx.OuroBadge
+import bot.ouro.ui.hx.OuroButton
+import bot.ouro.ui.hx.OuroCard
+import bot.ouro.ui.hx.OuroFrame
+import bot.ouro.ui.hx.OuroItem
+import bot.ouro.ui.hx.OuroTheme
+import bot.ouro.ui.hx.OuroTone
+import bot.ouro.ui.hx.OuroVariant
+import bot.ouro.ui.hx.systemIncreasedContrast
+import bot.ouro.ui.hx.tokens.OuroThemeName
+import kotlinx.coroutines.launch
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        enableEdgeToEdge()
+        val screen = intent.getStringExtra("screen") ?: "shop"
+        val theme = OuroThemeName.entries.firstOrNull { it.id == intent.getStringExtra("theme") } ?: OuroThemeName.Pearl
+        val dark = if (intent.hasExtra("dark")) intent.getBooleanExtra("dark", false) else null
+        val contrast = if (intent.hasExtra("contrast")) intent.getBooleanExtra("contrast", false) else null
+        setContent {
+            OuroTheme(theme, dark = dark ?: androidx.compose.foundation.isSystemInDarkTheme(), increasedContrast = contrast ?: systemIncreasedContrast()) {
+                Column(
+                    Modifier.fillMaxSize().background(Ouro.look.colors.background).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    when (screen) {
+                        "gallery" -> Gallery()
+                        "agent" -> AgentScreen()
+                        else -> ShopScreen()
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Heading(text: String) {
+    BasicText(text, style = TextStyle(color = Ouro.look.colors.foreground, fontSize = 24.sp, fontWeight = FontWeight.SemiBold))
+}
+
+@Composable
+private fun ShopScreen() {
+    var last by remember { mutableStateOf<String?>(null) }
+    Heading("Shopping list")
+    OuroCard(title = "This week", description = "${Shop.items.size} things" + if (Shop.sharedWith.isNotEmpty()) ", shared with ${Shop.sharedWith.joinToString()}" else "") {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            for (item in Shop.items) OuroItem(item.name, Modifier.testTag("item-${item.id}"), description = item.quantity?.let { "x ${it.toInt()}" })
+        }
+    }
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OuroButton(AddShoppingListItem, input = { AddShoppingListItemInput(name = "Basil") }, onResult = { last = it.fold({ "Added item ${it.id}" }, { it.message }) })
+        OuroButton(ShareShoppingList, input = { ShareShoppingListInput(with = "sam@example.com") }, variant = OuroVariant.Outline, tone = OuroTone.Secondary, onResult = { last = it.fold({ "Shared" }, { it.message }) })
+    }
+    OuroButton(PlaceGroceryOrder, input = { PlaceGroceryOrderInput }, tone = OuroTone.Success, onResult = { last = it.fold({ "Order placed" }, { it.message }) })
+    if (Shop.ordered.value) OuroBadge("Ordered", tone = OuroTone.Success, variant = OuroVariant.Soft)
+    last?.let { BasicText(it, Modifier.testTag("last"), style = TextStyle(color = Ouro.look.colors.mutedForeground, fontSize = 14.sp)) }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun Gallery() {
+    val look = Ouro.look
+    Heading("Ouro HX: ${look.name.id}${if (look.dark) ", dark" else ""}${if (look.increasedContrast) ", increased contrast" else ""}")
+    for (v in OuroVariant.entries) FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (t in OuroTone.entries) OuroButton(t.name, onPress = {}, tone = t, variant = v)
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        for (v in listOf(OuroVariant.Solid, OuroVariant.Soft, OuroVariant.Outline)) for (t in OuroTone.entries) OuroBadge(t.name, tone = t, variant = v)
+    }
+    OuroCard(title = "Pantry", description = "What you have on hand", action = { OuroButton("Edit", onPress = {}, tone = OuroTone.Secondary, variant = OuroVariant.Soft) }) {
+        BasicText("Flour, rice, black beans.", style = TextStyle(color = look.colors.cardForeground, fontSize = 16.sp))
+    }
+    OuroItem("Braised short ribs", description = "3 hours, serves six", actions = { OuroBadge("New", tone = OuroTone.Primary, variant = OuroVariant.Soft) }, onPress = {})
+    OuroItem("Pantry list", description = "12 things", variant = OuroFrame.Outline, onPress = {})
+}
+
+@Composable
+private fun AgentScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var lines by remember { mutableStateOf<List<AgentLine>>(emptyList()) }
+    var running by remember { mutableStateOf(false) }
+    val run: () -> Unit = {
+        running = true
+        scope.launch {
+            lines = runCatching { askAsAgent(context) }.getOrElse { listOf(AgentLine("AppFunctions", "${it.javaClass.simpleName}: ${it.message}", OuroTone.Destructive)) }
+            running = false
+        }
+    }
+    LaunchedEffect(Unit) { run() }
+    Heading("Agent console")
+    BasicText(
+        "This app calls its own AppFunctions, as an assistant would. Add runs; share needs the person to confirm, so it is refused; place order is person-only, so agents have no door to it.",
+        style = TextStyle(color = Ouro.look.colors.mutedForeground, fontSize = 14.sp),
+    )
+    OuroButton("Ask again", onPress = run, busy = running, variant = OuroVariant.Outline, tone = OuroTone.Secondary)
+    for ((i, line) in lines.withIndex()) {
+        OuroCard(Modifier.testTag("agent-$i"), title = line.call, description = line.answer, action = {
+            OuroBadge(when (line.tone) { OuroTone.Success -> "ran"; OuroTone.Destructive -> "refused"; OuroTone.Warning -> "person-only"; else -> "found" }, tone = line.tone, variant = OuroVariant.Soft)
+        })
+    }
+}
