@@ -26,8 +26,8 @@ object OuroColor {
     /** The colour in sRGB, clipped: a Display P3 token outside sRGB becomes its nearest sRGB colour. */
     fun srgb(c: Color): Color {
         if (c.colorSpace == ColorSpaces.Srgb) return c
-        val v = c.colorSpace.connect(ColorSpaces.Srgb).transform(c.red, c.green, c.blue)
-        return Color(v[0].coerceIn(0f, 1f), v[1].coerceIn(0f, 1f), v[2].coerceIn(0f, 1f), c.alpha)
+        val v = c.convert(ColorSpaces.Srgb)
+        return Color(v.red.coerceIn(0f, 1f), v.green.coerceIn(0f, 1f), v.blue.coerceIn(0f, 1f), c.alpha)
     }
 
     /** WCAG 2 relative luminance. */
