@@ -1,0 +1,33 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Pasta night for two: I suggest two of whatever you add."
+    }
+  ],
+  "structuredContent": {
+    "ouro": {
+      "version": "1",
+      "catalogId": "https://ui.ouroboros.bot/a2ui/v1/apps/shopping/catalog.json",
+      "update": {
+        "nodes": [
+          {
+            "id": "heading_0",
+            "component": "Heading",
+            "props": {
+              "text": "Pasta night for two",
+              "level": 1
+            },
+            "children": []
+          }
+        ],
+        "data": [
+          {
+            "path": "/item/quantity",
+            "value": 2
+          }
+        ]
+      }
+    }
+  }
+}

@@ -13,6 +13,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasContentDescription
@@ -304,6 +305,57 @@ class ComposedSurfaceTest {
     private fun hex(h: String) = androidx.compose.ui.graphics.Color(h.removePrefix("#").toLong(16).toInt())
 
     @Test
+    fun an_agent_s_update_changes_the_card_and_keeps_what_the_person_entered_except_where_the_agent_changed_it() {
+        val c = case("inputs.json")
+        val state = OuroComposedState(app)
+        rule.setContent {
+            OuroTheme(dark = false, increasedContrast = false, reduceMotion = false) {
+                OuroComposedSurface(state, onPress = { presses += it }, onHandoff = { a, how -> handoffs += a to how }, image = picture, onRefused = { refused += it })
+            }
+        }
+        fun result(key: String, value: Any?) = mapOf("structuredContent" to mapOf("ouro" to mapOf("version" to "1", "catalogId" to app.catalogId, key to value)))
+        rule.runOnIdle { state.receive(mapOf("structuredContent" to mapOf("ouro" to mapOf("version" to "1", "catalogId" to app.catalogId, "tree" to surfaces(c)["plan"], "data" to data(c, "plan"))))) }
+        val servings = hasSetTextAction() and hasContentDescription("Servings")
+        val sendTo = hasSetTextAction() and hasContentDescription("Send to")
+        rule.onNode(servings).performTextReplacement("6")
+        rule.onNode(sendTo).performTextReplacement("sam@example.com")
+        val title = mapOf("id" to "title", "component" to "Heading", "props" to mapOf("text" to "Lemon orzo for six", "level" to 1L), "children" to emptyList<Any?>())
+        rule.runOnIdle { assertEquals(emptyList<TreeProblem>(), state.receive(result("update", mapOf("nodes" to listOf(title), "data" to listOf(mapOf("path" to "/share/with", "value" to "kim@example.com")))))) }
+        assertTrue(exists("Lemon orzo for six"))
+        rule.onNode(servings).assert(hasText("6"))
+        rule.onNode(sendTo).assert(hasText("kim@example.com"))
+        button("Add ingredients to list").performClick()
+        rule.waitForIdle()
+        assertEquals("the person's 6 servings survive the agent's update", 6L, presses.single().input["servings"])
+
+        // An update that can't apply: the short alert, nothing of the card, and the agent's problems.
+        val missing = mapOf("id" to "subtitle", "component" to "Text", "props" to mapOf("text" to "Serves six", "tone" to "muted"), "children" to emptyList<Any?>())
+        rule.runOnIdle { assertEquals(listOf("/nodes/0/id"), state.receive(result("update", mapOf("nodes" to listOf(missing)))).map { it.path }) }
+        rule.onNodeWithTag("composed.refused").assertExists()
+        assertTrue(!exists("Add ingredients to list"))
+        assertTrue(refused.any { it.path == "/nodes/0/id" })
+        // A corrected update applies to the last card that did, and what the person typed is still there.
+        rule.runOnIdle { assertEquals(emptyList<TreeProblem>(), state.update(mapOf("data" to listOf(mapOf("path" to "/oven", "value" to "Grill"))))) }
+        rule.onNodeWithTag("composed.refused").assertDoesNotExist()
+        rule.onNode(servings).assert(hasText("6"))
+        rule.onNode(isSelectable() and hasText("Grill")).assertIsSelected()
+    }
+
+    @Test
+    fun new_data_for_the_same_card_keeps_the_person_s_answers_where_the_agent_left_the_value() {
+        val c = case("inputs.json")
+        val tree = ComposedNode.fromJson(surfaces(c)["plan"])
+        draw(tree, app, data(c, "plan"))
+        rule.onNode(hasSetTextAction() and hasContentDescription("Servings")).performTextReplacement("6")
+        rule.onNode(isToggleable() and hasContentDescription("Make it vegetarian")).performClick()
+        draw(tree, app, data(c, "plan") + ("vegetarian" to true) + ("oven" to "Grill"))
+        rule.onNode(hasSetTextAction() and hasContentDescription("Servings")).assert(hasText("6"))
+        rule.onNode(isToggleable() and hasContentDescription("Make it vegetarian")).assertIsOff()
+        draw(tree, app, data(c, "plan") + ("servings" to 8L))
+        rule.onNode(hasSetTextAction() and hasContentDescription("Servings")).assert(hasText("8"))
+    }
+
+    @Test
     fun a_forged_tree_is_refused_and_nothing_of_it_is_drawn() {
         val tree = ComposedNode.fromJson(surfaces(case("action-buttons.json"))["buttons"])
         val shop = tree.children[1]
@@ -311,6 +363,8 @@ class ComposedSurfaceTest {
         draw(relabeled, app)
         assertTrue(refused.any { it.path == "/children/0/props/label" })
         assertTrue(!exists("Get a free gift"))
+        rule.onNodeWithTag("composed.refused").assertExists()
+        assertTrue("the alert says only that it can't be shown", exists("This card can't be shown"))
     }
 
     @Test

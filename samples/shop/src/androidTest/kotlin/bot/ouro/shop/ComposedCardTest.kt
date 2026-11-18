@@ -9,6 +9,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -54,7 +55,7 @@ class ComposedCardTest {
 
     @Test
     fun the_card_s_buttons_are_the_app_s_declared_actions_with_their_consent() {
-        rule.onNodeWithTag("refused").assertDoesNotExist()
+        rule.onNodeWithTag("composed.refused").assertDoesNotExist()
         val doors = rule.onAllNodes(SemanticsMatcher.keyIsDefined(OuroActionKey)).fetchSemanticsNodes().map { it.config[OuroActionKey].split(";") }
         assertEquals(OuroActions.set.actions.map { it.id }.toSet(), doors.map { it[0] }.toSet())
         for ((id, consent) in doors) assertEquals(id, OuroActions.set[id]!!.consent.wire, consent)
@@ -82,6 +83,21 @@ class ComposedCardTest {
         rule.onNodeWithTag("composed.confirm.press").performClick()
         rule.waitUntil(10_000) { Shop.sharedWith.size == before + 1 }
         assertEquals("kim@example.com", Shop.sharedWith.last())
+    }
+
+    @Test
+    fun the_agent_s_update_changes_the_card_and_keeps_what_the_person_typed() {
+        val item = hasSetTextAction() and hasContentDescription("Item")
+        rule.onNode(item).performTextReplacement("Capers")
+        rule.onNodeWithTag("agent-update").performScrollTo().performClick()
+        rule.waitForIdle()
+        assertTrue(rule.onAllNodes(hasText("Pasta night for two")).fetchSemanticsNodes().isNotEmpty())
+        rule.onNode(item).assert(hasText("Capers"))
+        rule.onNode(hasSetTextAction() and hasContentDescription("Quantity")).assert(hasText("2"))
+        val before = Shop.items.size
+        button("Add to list").performClick()
+        rule.waitUntil(10_000) { Shop.items.size == before + 1 }
+        assertEquals(ListItem(Shop.items.last().id, "Capers", 2.0), Shop.items.last())
     }
 
     @Test

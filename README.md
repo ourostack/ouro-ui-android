@@ -35,7 +35,7 @@ dependencyResolutionManagement {
     }
 }
 // build.gradle.kts
-dependencies { implementation("bot.ouro.ui:ouro-hx:0.2.2") }
+dependencies { implementation("bot.ouro.ui:ouro-hx:0.3.0") }
 ```
 
 ```kotlin
@@ -52,21 +52,22 @@ Android draws Ouro's composed tree: the UI an agent composes for a person, check
 
 ```kotlin
 val catalog = ComposedCatalog.parse(assets.open("shopping.catalog.json").reader().readText())
-when (val read = OuroComposed.read(catalog, toolResultJson)) {
-    is OuroComposed.Read.Ready -> OuroComposedSurface(
-        read.tree, catalog, data = read.data,
-        onPress = { press -> runAction(press.action, press.input) },   // read, write, and consequential once confirmed
-        onHandoff = { action, how -> openScreenFor(action) },          // person-only: your own screen, never a press
-    )
-    is OuroComposed.Read.Refused -> showProblems(read.problems)
-}
+val card = rememberOuroComposedState(catalog)
+LaunchedEffect(toolResultJson) { card.receive(toolResultJson) }   // a tree, or an update to the one shown
+OuroComposedSurface(
+    card,
+    onPress = { press -> runAction(press.action, press.input) },   // read, write, and consequential once confirmed
+    onHandoff = { action, how -> openScreenFor(action) },          // person-only: your own screen, never a press
+)
 ```
+
+An agent can change the card it sent without resending it: a tool result's `structuredContent.ouro.update` (core's `mcpAppTreeUpdateResult`, core 0.19.0 on) replaces nodes by id and sets data by JSON Pointer. `card.receive(result)` applies it, or `card.update(update)` applies one you got another way, with core's `applyTreeUpdate`: all of it or nothing. An id the tree lacks or a template's instances share, an unsafe path, or a tree that would fail the checks (a relabeled button, loosened consent) is refused. What the person entered stays across an update, except where the agent changed the value or the list item it sits in, as on web. If you hold the tree yourself, pass each new `tree` and `data` to the other overload, `OuroComposedSurface(tree, catalog, ...)`, which keeps the person's answers the same way.
 
 Write the catalog from your declarations with core's generator: take `ouro-a2ui-catalog.mts`, `ouro-a2ui.mts`, `ouro-composed.mts`, `ouro-mcp-app.mts` and `ouro-actions.mts` from a core release into one folder, then run `node ouro-a2ui-catalog.mts catalog <actions.mts> <catalog.json>`. `samples/shop` does exactly this, and CI checks that the catalog still matches.
 
 What the surface does:
 
-- It checks the tree with core's validator (`bot.ouro.ui.hx.composed`, core's `composed.mts` ported) and draws nothing it refuses, so a sender can't relabel a button or loosen its consent.
+- It checks the tree with core's validator (`bot.ouro.ui.hx.composed`, core's `composed.mts` ported) and draws none of a tree or update it refuses, so a sender can't relabel a button or loosen its consent. It shows a short alert instead, "This card can't be shown", as web does, and `onRefused` gets the problems.
 - Read and write buttons press at once. A consequential one opens a confirm sheet that shows each prepared value under its label, with the id small beside a name. It presses only on confirm. A tree whose sheet would show the person anything other than what is sent is refused, as core 0.18.1's validator says ([ouro-ui-core#88](https://github.com/ourostack/ouro-ui-core/issues/88)), and the surface builds the rows from your catalog and the input anyway. Your `label` resolver names only id fields (those with `shownAs`); every other row shows exactly the value sent.
 - A person-only button calls `onHandoff` and never presses.
 - A field's `value` or a bound input whose pointer names `__proto__`, `constructor` or `prototype` is refused, and such a pointer writes nothing, as in core 0.18.2 ([ouro-ui-core#91](https://github.com/ourostack/ouro-ui-core/issues/91)). Names a sender chooses (component, action, input field) are the catalog's only when the catalog itself has them.

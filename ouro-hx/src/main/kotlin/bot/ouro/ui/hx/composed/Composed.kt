@@ -331,18 +331,26 @@ object OuroComposed {
     private fun index(key: String): Int? = if (key.isNotEmpty() && key.all { it in '0'..'9' }) key.toIntOrNull() else null
 
     /** Reads a JSON pointer (RFC 6901). A missing value is null, and only what the data itself holds is read. */
-    fun getPointer(data: Any?, pointer: String): Any? {
+    fun getPointer(data: Any?, pointer: String): Any? = find(data, pointer).takeUnless { it === Absent }
+
+    /** What a pointer finds: the value, JSON null included, or [Absent] where the data holds nothing (core's undefined). */
+    internal object Absent
+
+    internal fun find(data: Any?, pointer: String): Any? {
         if (pointer == "" || pointer == "/") return data
         var cur: Any? = data
         for (raw in pointer.removePrefix("/").split("/")) {
             val key = unescape(raw)
             val here = cur
             cur = when (here) {
-                is List<*> -> index(key)?.let { here.getOrNull(it) }
-                is Map<*, *> -> here[key]
-                else -> return null
+                is List<*> -> {
+                    val i = index(key)
+                    if (i == null || i >= here.size) return Absent
+                    here[i]
+                }
+                is Map<*, *> -> if (here.containsKey(key)) here[key] else return Absent
+                else -> return Absent
             }
-            if (cur == null) return null
         }
         return cur
     }
@@ -693,6 +701,132 @@ object OuroComposed {
     }
 
     // -------------------------------------------------------------------------------------------------------------
+    // Updating a tree a renderer already draws (core 0.19.0)
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** What [applyTreeUpdate] gives: the new tree and data model, or every problem and no change. */
+    sealed interface Applied {
+        data class Updated(val tree: ComposedNode, val data: Map<String, Any?>?) : Applied
+
+        data class Problems(val problems: List<TreeProblem>) : Applied
+    }
+
+    private const val UPDATE_SHAPE = "An update is { nodes?, data? }: nodes replace the tree's nodes by id, and data sets values by JSON pointer."
+
+    /**
+     * Every problem in an update that needs no tree (core's `treeUpdateProblems`): its shape, each node against the
+     * catalog ([validateTree], at `/nodes/<i>`) and each data path, which is absolute and never names an object's
+     * prototype ([isDataPointer]). An update is `{ nodes?, data? }`, as core's `TreeUpdate`.
+     */
+    fun treeUpdateProblems(cat: ComposedCatalog, update: Any?): List<TreeProblem> {
+        if (update !is Map<*, *>) return listOf(TreeProblem("", UPDATE_SHAPE))
+        nonJsonAt(update, "", java.util.Collections.newSetFromMap(java.util.IdentityHashMap()))?.let {
+            return listOf(TreeProblem(it, "An update is JSON: text, finite numbers, true, false, null, lists and objects."))
+        }
+        val problems = mutableListOf<TreeProblem>()
+        for (key in update.keys.map { it.toString() }) if (key != "nodes" && key != "data") problems += TreeProblem("/$key", "An update has no $key. $UPDATE_SHAPE")
+        if (update.containsKey("nodes")) {
+            val nodes = update["nodes"]
+            if (nodes !is List<*>) problems += TreeProblem("/nodes", "nodes is a list of nodes, each replacing the tree's node with its id.")
+            else nodes.forEachIndexed { i, n -> problems += validateTree(cat, n, "/nodes/$i") }
+        }
+        if (update.containsKey("data")) {
+            val data = update["data"]
+            if (data !is List<*>) problems += TreeProblem("/data", "data is a list of { path, value }, each setting the data model at a JSON pointer.")
+            else data.forEachIndexed { i, d ->
+                if (d !is Map<*, *> || !d.containsKey("value") || d.keys.any { it != "path" && it != "value" }) problems += TreeProblem("/data/$i", "A data entry is { path, value }: value is JSON, and null deletes.")
+                else if (d["path"] !is String || !isDataPointer(d["path"] as String)) problems += TreeProblem("/data/$i/path", "path is a JSON pointer into the data model, such as /servings, and never names __proto__, constructor or prototype.")
+            }
+        }
+        return problems
+    }
+
+    /** Where a value first stops being JSON, or null when it is JSON all the way down. */
+    private fun nonJsonAt(v: Any?, at: String, seen: MutableSet<Any>): String? {
+        when (v) {
+            null, is String, is Boolean, is Long, is Int, is Short, is Byte -> return null
+            is Double -> return if (v.isFinite()) null else at
+            is Float -> return if (v.isFinite()) null else at
+            is Map<*, *>, is List<*> -> Unit
+            else -> return at
+        }
+        if (!seen.add(v)) return at
+        val entries: List<Pair<String, Any?>> = if (v is List<*>) v.mapIndexed { i, x -> i.toString() to x } else (v as Map<*, *>).entries.map { (k, x) -> (k as? String ?: return at) to x }
+        for ((k, x) in entries) nonJsonAt(x, "$at/${k.replace("~", "~0").replace("/", "~1")}", seen)?.let { return it }
+        seen.remove(v)
+        return null
+    }
+
+    /** Why setting [pointer] in [data] would not give JSON: a list is written only at an index from 0 to its length. */
+    private fun listIndexProblem(data: Any?, pointer: String): String? {
+        var cur: Any? = data
+        for (k in segments(pointer)) {
+            val here = cur
+            when (here) {
+                is List<*> -> {
+                    val i = if (k.isNotEmpty() && k.all { it in '0'..'9' }) k.toBigInteger() else null
+                    if (i == null || i > here.size.toBigInteger()) return "$pointer names ${json(k)} in a list of ${here.size}; in a list, a segment is an index from 0 to ${here.size}."
+                    cur = here.getOrNull(i.toInt())
+                }
+                is Map<*, *> -> cur = here[k]
+                else -> return null
+            }
+        }
+        return null
+    }
+
+    private fun countId(n: ComposedNode, id: String): Int = (if (n.id == id) 1 else 0) + n.children.sumOf { countId(it, id) }
+
+    private fun replaceNode(n: ComposedNode, by: ComposedNode): ComposedNode = if (n.id == by.id) by else n.copy(children = n.children.map { replaceNode(it, by) })
+
+    /**
+     * A tree and its data model after an update (core's `applyTreeUpdate`), or every problem and no change: never a
+     * tree partly updated. Each of the update's `nodes` replaces the tree's one node with its id, children and all; an
+     * id the tree lacks, or one a template's instances share, is a problem. Each of its `data` sets the value at a JSON
+     * pointer ([setPointer]; null deletes, `/` is the whole data model, which stays an object, and a list is written
+     * only at an index from 0 to its length). The result passes [validateTree], so an update can't relabel a button or
+     * loosen its consent any more than a whole tree can. It changes neither input and shares no object with them.
+     */
+    fun applyTreeUpdate(cat: ComposedCatalog, tree: Any?, data: Any?, update: Any?): Applied {
+        val shape = treeUpdateProblems(cat, update)
+        if (shape.isNotEmpty()) return Applied.Problems(shape)
+        val given = validateTree(cat, if (tree is ComposedNode) tree.toJson() else tree)
+        if (given.isNotEmpty()) return Applied.Problems(given)
+        val u = update as Map<*, *>
+        val problems = mutableListOf<TreeProblem>()
+        var next = ComposedNode.fromJson(copy(if (tree is ComposedNode) tree.toJson() else tree))
+        (u["nodes"] as? List<*>).orEmpty().forEachIndexed { i, raw ->
+            val n = ComposedNode.fromJson(copy(raw))
+            when (val found = countId(next, n.id)) {
+                0 -> problems += TreeProblem("/nodes/$i/id", "${json(n.id)} is not in the tree; replace a node it has, or the node that should hold this one.")
+                1 -> next = replaceNode(next, n)
+                else -> problems += TreeProblem("/nodes/$i/id", "${json(n.id)} names $found nodes, a template's instances; replace the node that holds them, by its own id.")
+            }
+        }
+        var model: Any? = copy(data)
+        (u["data"] as? List<*>).orEmpty().forEachIndexed { i, raw ->
+            val d = raw as Map<*, *>
+            val path = d["path"] as String
+            val base: Any = model ?: LinkedHashMap<String, Any?>()
+            val index = listIndexProblem(base, path)
+            if (index != null) {
+                problems += TreeProblem("/data/$i/path", index)
+                return@forEachIndexed
+            }
+            val written = setPointer(base, path, copy(d["value"]))
+            if (written !is Map<*, *>) {
+                problems += TreeProblem("/data/$i/value", "The data model is an object; set / only to an object.")
+                return@forEachIndexed
+            }
+            model = written
+        }
+        if (problems.isNotEmpty()) return Applied.Problems(problems)
+        val invalid = validateTree(cat, next)
+        @Suppress("UNCHECKED_CAST")
+        return if (invalid.isNotEmpty()) Applied.Problems(invalid) else Applied.Updated(next, model as Map<String, Any?>?)
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
     // What a tool result carries
     // -------------------------------------------------------------------------------------------------------------
 
@@ -703,23 +837,35 @@ object OuroComposed {
 
         /** Why it can't be drawn: each problem says where and why. */
         data class Refused(val problems: List<TreeProblem>) : Read
+
+        /**
+         * An update to the tree the view already draws (core's `mcpAppTreeUpdateResult`), its shape, nodes and paths
+         * checked; apply it with [applyTreeUpdate], or hand it to [bot.ouro.ui.hx.OuroComposedState.update].
+         */
+        data class Update(val update: Map<String, Any?>) : Read
     }
 
     /**
-     * Reads an MCP tool result's `structuredContent.ouro` (core's mcp-app.mts: `{ version, catalogId, tree, data? }`)
-     * and validates its tree against [cat]. Pass the whole result, its `structuredContent`, or the `ouro` object itself.
-     * A result that carries A2UI messages instead is refused: Android draws Ouro's tree, not A2UI.
+     * Reads an MCP tool result's `structuredContent.ouro` (core's mcp-app.mts: `{ version, catalogId, tree, data? }`, or
+     * `{ version, catalogId, update }` for the tree a view already draws) and checks it against [cat]. Pass the whole
+     * result, its `structuredContent`, or the `ouro` object itself. A result that carries A2UI messages instead is
+     * refused: Android draws Ouro's tree, not A2UI.
      */
     fun read(cat: ComposedCatalog, result: Any?): Read {
         val r = result as? Map<*, *>
         val structured = (r?.get("structuredContent") as? Map<*, *>) ?: r
-        val ouro = (structured?.get("ouro") as? Map<*, *>) ?: structured?.takeIf { it.containsKey("tree") && it.containsKey("version") }
+        val ouro = (structured?.get("ouro") as? Map<*, *>) ?: structured?.takeIf { (it.containsKey("tree") || it.containsKey("update")) && it.containsKey("version") }
         if (ouro == null) {
             val a2ui = structured?.containsKey("a2ui") == true
             return Read.Refused(listOf(TreeProblem("/structuredContent", if (a2ui) "This result carries A2UI messages; Android draws Ouro's composed tree. Fix: send the tree (core's mcpAppTreeResult)." else "This result carries no structuredContent.ouro. Fix: send the tree (core's mcpAppTreeResult).")))
         }
         if (ouro["version"] != COMPOSED_VERSION) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/version", "This renderer draws version $COMPOSED_VERSION of Ouro's tree, got ${json(ouro["version"])}.")))
         if (ouro["catalogId"] != cat.catalogId) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/catalogId", "This renderer has only the catalog ${cat.catalogId}.")))
+        if (!ouro.containsKey("tree") && ouro.containsKey("update")) {
+            val problems = treeUpdateProblems(cat, ouro["update"]).map { it.copy(path = "/structuredContent/ouro/update${it.path}") }
+            @Suppress("UNCHECKED_CAST")
+            return if (problems.isNotEmpty()) Read.Refused(problems) else Read.Update(ouro["update"] as Map<String, Any?>)
+        }
         val data = ouro["data"]
         if (data != null && data !is Map<*, *>) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/data", "data is the data model, an object.")))
         val problems = validateTree(cat, ouro["tree"], "/structuredContent/ouro/tree")

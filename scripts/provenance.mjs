@@ -44,6 +44,7 @@ const MAP = {
   "vendor/core/composed/catalog.json": "dist/hx/a2ui/catalog.json",
   "vendor/core/composed/recipe.catalog.json": "standard/hx/a2ui/conformance/recipe.catalog.json",
   "vendor/core/composed/cases/": "standard/hx/a2ui/conformance/cases/",
+  "vendor/core/composed/updates/": "standard/hx/composed/updates/",
   "ouro-hx/src/main/kotlin/bot/ouro/ui/hx/tokens/OuroTokens.kt": "dist/android/OuroTokens.kt",
 };
 

@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -51,7 +52,9 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.collectionInfo
 import androidx.compose.ui.semantics.collectionItemInfo
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -61,6 +64,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import bot.ouro.ui.hx.composed.ComposedAnswers
 import bot.ouro.ui.hx.composed.ComposedCatalog
 import bot.ouro.ui.hx.composed.ComposedNode
 import bot.ouro.ui.hx.composed.LabelContext
@@ -88,9 +92,13 @@ typealias OuroComposedImage = @Composable (url: String, description: String, mod
  *   screen, and never presses.
  *
  * The fields (TextField, Checkbox, Select) start from [data] and write the person's answers into the surface's own
- * copy; a button bound to a field sends what the person entered. A new [tree] or [data] starts the fields over.
+ * copy; a button bound to a field sends what the person entered. When [tree] or [data] changes, as an agent's update
+ * changes them, what the person entered stays, except at a pointer whose value the new [data] changed, or in a list
+ * item it changed: there the agent's value wins. To apply an agent's update for you, use the [OuroComposedState]
+ * overload.
  *
- * The surface checks [tree] against [catalog] first and draws nothing it refuses: [onRefused] gets the problems.
+ * The surface checks [tree] against [catalog] first and draws none of a tree it refuses: it shows a short alert
+ * instead ("This card can't be shown"), and [onRefused] gets the problems.
  * Nothing in it lets an agent press: an agent runs an action through its own AppFunction, and every press here is the
  * person's (`PersonPress.by` is "person"). [onPress] handles its own errors: one it throws ends the app as any
  * uncaught exception does. Use HX's components directly when your own code, not an agent, lays out
@@ -101,7 +109,7 @@ typealias OuroComposedImage = @Composable (url: String, description: String, mod
  *     is OuroComposed.Read.Ready -> OuroComposedSurface(read.tree, catalog, data = read.data,
  *         onPress = { press -> callTool(press.action, press.input) },
  *         onHandoff = { action, _ -> openScreenFor(action) })
- *     is OuroComposed.Read.Refused -> Unit
+ *     is OuroComposed.Read.Update, is OuroComposed.Read.Refused -> Unit   // an OuroComposedState applies updates for you
  * }
  * ```
  *
@@ -123,10 +131,156 @@ fun OuroComposedSurface(
     val problems = remember(tree, catalog) { OuroComposed.validateTree(catalog, tree) }
     if (problems.isNotEmpty()) {
         LaunchedEffect(problems) { onRefused(problems) }
+        CantShow(modifier)
         return
     }
-    var current by remember(tree, data) { mutableStateOf<Any?>(data) }
-    val context = ComposedContext(catalog, current, { pointer, value -> current = OuroComposed.setPointer(current, pointer, value) }, onPress, onHandoff, label, image)
+    var answers by remember { mutableStateOf(ComposedAnswers.of(data)) }
+    // New data from the agent: keep what the person entered, except where the agent changed it.
+    if (answers.data !== data) answers = answers.carry(data)
+    ComposedBody(tree, catalog, answers.current, { pointer, value -> answers = answers.write(pointer, value) }, onPress, onHandoff, modifier, label, image)
+}
+
+/**
+ * A composed card an agent sends and then updates, for [OuroComposedSurface]: the tree it shows, the data model the
+ * agent last sent, what the person entered, and why the last tree, update or tool result couldn't be shown.
+ *
+ * ```kotlin
+ * val card = rememberOuroComposedState(catalog)
+ * LaunchedEffect(result) { card.receive(result) }   // a tool result: structuredContent.ouro's tree, or its update
+ * OuroComposedSurface(card, onPress = { press -> callTool(press.action, press.input) }, onHandoff = { a, _ -> open(a) })
+ * ```
+ *
+ * An update ([update], or a tool result's `structuredContent.ouro.update`) applies with core's `applyTreeUpdate`: all
+ * of it or none. While one can't apply, the surface shows the short alert, and the last tree that applied, with what the
+ * person entered, stays for the next update.
+ */
+@Stable
+class OuroComposedState(val catalog: ComposedCatalog) {
+    /** The tree shown, or null before the first, or after a tree that was refused. */
+    var tree by mutableStateOf<ComposedNode?>(null)
+        private set
+
+    /** The data model the agent last sent. */
+    var data by mutableStateOf<Map<String, Any?>>(emptyMap())
+        private set
+
+    /** Why the last tree, update or result couldn't be shown; empty when the tree shows. */
+    var problems by mutableStateOf<List<TreeProblem>>(emptyList())
+        private set
+
+    internal var answers by mutableStateOf(ComposedAnswers.of(emptyMap<String, Any?>()))
+
+    /** What the person has entered so far, over the agent's data: what a bound button would send. */
+    val entered: Any? get() = answers.current
+
+    /** A whole tree and its data, in place of the card: what the person entered stays where the agent left it. */
+    fun show(tree: ComposedNode, data: Map<String, Any?> = emptyMap()): List<TreeProblem> {
+        val found = OuroComposed.validateTree(catalog, tree)
+        if (found.isNotEmpty()) {
+            this.tree = null
+            problems = found
+            return found
+        }
+        answers = if (this.tree != null) answers.carry(data) else ComposedAnswers.of(data)
+        this.tree = tree
+        this.data = data
+        problems = emptyList()
+        return problems
+    }
+
+    /** An update to the tree shown (core's `TreeUpdate`, `{ nodes?, data? }`): applied whole, or not at all. */
+    fun update(update: Any?): List<TreeProblem> {
+        val shown = tree
+        if (shown == null) {
+            problems = listOf(TreeProblem("/update", "An update changes the composed tree the view shows, and it shows none yet; send the whole tree first, in structuredContent.ouro.tree."))
+            return problems
+        }
+        when (val applied = OuroComposed.applyTreeUpdate(catalog, shown, data, update)) {
+            is OuroComposed.Applied.Problems -> problems = applied.problems
+            is OuroComposed.Applied.Updated -> {
+                val next = applied.data.orEmpty()
+                answers = answers.carry(next)
+                tree = applied.tree
+                data = next
+                problems = emptyList()
+            }
+        }
+        return problems
+    }
+
+    /** A tool result ([OuroComposed.read]): its tree takes the card's place, or its update applies to it. */
+    fun receive(result: Any?): List<TreeProblem> = when (val read = OuroComposed.read(catalog, result)) {
+        is OuroComposed.Read.Ready -> show(read.tree, read.data)
+        is OuroComposed.Read.Update -> update(read.update)
+        is OuroComposed.Read.Refused -> {
+            if (read.problems.any { it.path.startsWith("/structuredContent/ouro/tree") }) tree = null
+            problems = read.problems
+            problems
+        }
+    }
+}
+
+/** A card the agent sends and updates, kept across recompositions: see [OuroComposedState]. */
+@Composable
+fun rememberOuroComposedState(catalog: ComposedCatalog): OuroComposedState = remember(catalog) { OuroComposedState(catalog) }
+
+/**
+ * Draws the card [state] holds, as the other overload does, and applies the agent's updates to it with core's
+ * `applyTreeUpdate`. While a tree, update or result can't be shown, it shows a short alert ("This card can't be
+ * shown") and [onRefused] gets the problems; what the person entered stays for the next update that applies.
+ */
+@Composable
+fun OuroComposedSurface(
+    state: OuroComposedState,
+    onPress: suspend (PersonPress) -> Unit,
+    onHandoff: (action: String, how: String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: ((LabelContext) -> String?)? = null,
+    image: OuroComposedImage = { url, description, m -> OuroRemoteImage(url, description, m) },
+    onRefused: (List<TreeProblem>) -> Unit = {},
+) {
+    val problems = state.problems
+    if (problems.isNotEmpty()) {
+        LaunchedEffect(problems) { onRefused(problems) }
+        CantShow(modifier)
+        return
+    }
+    val tree = state.tree ?: return
+    ComposedBody(tree, state.catalog, state.answers.current, { pointer, value -> state.answers = state.answers.write(pointer, value) }, onPress, onHandoff, modifier, label, image)
+}
+
+/** The short alert a card that fails the checks shows, as web's: the person learns nothing from the problems. */
+@Composable
+private fun CantShow(modifier: Modifier) {
+    val look = Ouro.look
+    val paint = OuroPaint.resolve(look.colors, OuroTone.Destructive, OuroVariant.Soft, look.textContrast, Ouro.surface)
+    val body = OuroColor.readable(look.colors.foreground, paint.fill, look.textContrast)
+    val shape = RoundedCornerShape(look.radius)
+    Column(
+        modifier.testTag("composed.refused").fillMaxWidth().background(paint.fill, shape).border(1.dp, paint.edge, shape).padding(16.dp).semantics(mergeDescendants = true) {
+            liveRegion = LiveRegionMode.Polite
+            ouroReport = report("kind" to "composed-alert", "label" to OuroColor.hex(paint.label), "text" to OuroColor.hex(body), "behind" to OuroColor.hex(paint.fill))
+        },
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        BasicText("This card can't be shown", style = TextStyle(color = paint.label, fontSize = 16.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold))
+        BasicText("It didn't pass the checks for composed UI.", style = TextStyle(color = body, fontSize = 14.sp, lineHeight = 20.sp))
+    }
+}
+
+@Composable
+private fun ComposedBody(
+    tree: ComposedNode,
+    catalog: ComposedCatalog,
+    current: Any?,
+    write: (String, Any?) -> Unit,
+    onPress: suspend (PersonPress) -> Unit,
+    onHandoff: (action: String, how: String) -> Unit,
+    modifier: Modifier,
+    label: ((LabelContext) -> String?)?,
+    image: OuroComposedImage,
+) {
+    val context = ComposedContext(catalog, current, write, onPress, onHandoff, label, image)
     Box(modifier.semantics { ouroReport = report("kind" to "composed-surface") }) { Node(tree, context) }
 }
 
