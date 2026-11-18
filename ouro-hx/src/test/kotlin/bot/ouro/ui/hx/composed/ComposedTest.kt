@@ -219,6 +219,34 @@ class ComposedTest {
     }
 
     @Test
+    fun a_name_a_sender_chooses_is_the_catalog_s_only_when_the_catalog_itself_has_it() {
+        for (name in listOf("constructor", "toString", "__proto__", "hasOwnProperty")) {
+            val extra = card(forge(share) { this["input"] = linkedMapOf("recipe" to "rcp_123", "with" to "sam@example.com", name to true) })
+            assertTrue("input $name", OuroComposed.validateTree(app, extra).any { it.message.startsWith("share_recipe has no input $name") })
+            assertTrue("component $name", first(OuroComposed.validateTree(app, card(linkedMapOf("id" to "x", "component" to name, "props" to emptyMap<String, Any?>(), "children" to emptyList<Any?>())))).message.contains("is not in this catalog"))
+            assertTrue("action $name", first(OuroComposed.validateTree(app, card(forge(open) { this["action"] = name }))).message.contains("not one of the app's actions"))
+            val e = assertThrows(IllegalArgumentException::class.java) { ComposedCatalog.fromJson(mapOf("catalogId" to "x", "components" to mapOf("Text" to emptyMap<String, Any?>(), name to emptyMap<String, Any?>()))) }
+            assertEquals("catalog x: component $name is not Ouro HX's. Fix: regenerate it with ouro-a2ui catalog.", e.message)
+        }
+    }
+
+    @Test
+    fun a_pointer_never_names_a_prototype_writes_through_one_write_nothing_and_the_validator_refuses_it() {
+        for (p in listOf("/__proto__/polluted", "/constructor/prototype/polluted", "/a/__proto__/toString", "/a/prototype")) {
+            assertEquals(p, """{"a":{}}""", ComposedJson.stringify(OuroComposed.setPointer(mapOf("a" to emptyMap<String, Any?>()), p, "yes")))
+            assertEquals(p, """{"a":{}}""", ComposedJson.stringify(OuroComposed.setPointer(mapOf("a" to emptyMap<String, Any?>()), p, null)))
+            assertEquals(p, false, OuroComposed.isDataPointer(p))
+        }
+        for (p in listOf("constructor", "items/__proto__")) assertEquals("relative $p", false, OuroComposed.isSafePointer(p))
+        assertEquals(true, OuroComposed.isDataPointer("/recipe/title"))
+        assertEquals(null, OuroComposed.getPointer(mapOf("a" to 1L), "/toString"))
+        val field = card(linkedMapOf("id" to "f", "component" to "TextField", "props" to mapOf("label" to "X", "value" to "/__proto__/x", "type" to "text", "multiline" to false), "children" to emptyList<Any?>()))
+        assertTrue(first(OuroComposed.validateTree(hx, field)).message.startsWith("value is a JSON pointer into the data model"))
+        val bound = OuroComposed.validateTree(app, card(forge(shop) { this["input"] = mapOf("recipe" to "rcp_123", "servings" to mapOf("@path" to "/__proto__/servings")) }))
+        assertEquals("servings is a value, or {\"@path\": \"/...\"} bound to the data model.", first(bound).message)
+    }
+
+    @Test
     fun the_app_s_resolver_names_only_id_fields_every_other_row_shows_what_will_be_sent() {
         val input = mapOf("recipe" to "rcp_1", "with" to "sam@example.com")
         val asked = mutableListOf<String>()
