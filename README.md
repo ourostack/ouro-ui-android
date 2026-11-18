@@ -77,6 +77,7 @@ What the surface does:
 Limits:
 
 - Android reads no A2UI messages: send Ouro's tree (`structuredContent.ouro`), not an A2UI stream (`structuredContent.a2ui`). `OuroComposed.read` refuses an A2UI result and says so.
+- Android refuses a tree nested more than 100 components deep, and JSON nested more than 512 levels, so a forged one can't exhaust the stack. Core sets no such limit; no screen comes near it.
 - The default image loader fetches only https URLs, and your app needs the INTERNET permission. Pass `image` to use your own loader.
 - Like everything here, it is checked on the CI emulator only, never on a device.
 
