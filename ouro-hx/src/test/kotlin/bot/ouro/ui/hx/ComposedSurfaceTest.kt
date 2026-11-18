@@ -186,8 +186,11 @@ class ComposedSurfaceTest {
         draw(tree, app)
         button("Share recipe").performClick()
         rule.onNodeWithTag("composed.confirm").assertExists()
-        val resent = tree.copy(children = tree.children.map { if (it.id == "share") it.copy(props = it.props + ("input" to mapOf("recipe" to "rcp_123", "with" to "kim@example.com"))) else it })
+        // The agent sends the card again for someone else: a valid button, its rows what the catalog gives for the new input.
+        val kim = OuroComposed.actionButtonProps(app, "share_recipe", mapOf("recipe" to "rcp_123", "with" to "kim@example.com"))
+        val resent = tree.copy(children = tree.children.map { if (it.id == "share") it.copy(props = it.props + kim) else it })
         draw(resent, app)
+        assertEquals(emptyList<TreeProblem>(), refused)
         rule.onNodeWithTag("composed.confirm").assertDoesNotExist()
         assertEquals(emptyList<PersonPress>(), presses)
         button("Share recipe").performClick()
