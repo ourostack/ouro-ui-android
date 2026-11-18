@@ -21,6 +21,7 @@ The maintainer owns no Android phone or tablet. Everything in this repository is
 | `ouro-hx` (`bot.ouro.ui:ouro-hx`) | `OuroTheme` from core's tokens (six themes, light and dark, increased contrast, reduce motion), and `OuroButton`, `OuroBadge`, `OuroCard` and `OuroItem`, Apple's first set. |
 | `ouro-actions` (`bot.ouro.ui:ouro-actions`) | The runtime behind every action. A person's press and an agent's AppFunction call take one path. A person-only action refuses agents with core's typed refusal, and a consequential one is refused until the person confirms. |
 | `vendor/core/ouro-actions-android.mts` | Core's Android generator, vendored from its release by SHA-256: action declarations become `OuroActions.kt` (an AppFunction per action an agent may call, none for person-only) and `doors.json` (which door carries which action, and why not). |
+| `vendor/core/composed` | Core's composed-tree catalogs and conformance cases. The catalog comes from the release's dist and the cases from the tag's commit, each pinned by SHA-256 in `core-provenance.json`. `ouro-hx`'s port of core's `composed.mts` (`bot.ouro.ui.hx.composed`) is tested against every tree they hold. |
 | `samples/shop` | A shopping list that declares its actions once and opens both doors. CI runs its X-ray on an emulator. |
 
 ## Use it
@@ -49,7 +50,7 @@ AppFunctions need compileSdk 37 and AGP 9.1 or later. Google lists Android 16 (A
 
 - **build:** `ouro-actions`' runtime tests, and core's claims for every component in Robolectric. The claims are names and roles in the semantics tree, 48 dp touch targets, reduced motion, text that reflows at 200%, and contrast in all six themes with pixels sampled. It also checks the snapshots in light, dark, increased contrast and 200% text.
 - **emulator:** the sample on an Android 17 emulator, Google's automated-test image (ATD). The X-ray compares what Android indexed against the declarations, then CI photographs each screen.
-- **generated:** the vendored core files match their release by SHA-256, and the sample's generated Kotlin matches its declarations.
+- **generated:** the vendored core files match their release by SHA-256 (the dist's manifest, or the tag's commit for files the dist doesn't carry), and the sample's generated Kotlin matches its declarations.
 
 ## License
 
