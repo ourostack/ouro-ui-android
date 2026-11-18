@@ -45,6 +45,8 @@ jobs:
         with:
           node-version: 24
       - run: node scripts/provenance.mjs check
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
       - run: node vendor/core/ouro-actions-android.mts check samples/shop/shopping.actions.mts samples/shop/src/main/kotlin/bot/ouro/shop/actions
 
   build:

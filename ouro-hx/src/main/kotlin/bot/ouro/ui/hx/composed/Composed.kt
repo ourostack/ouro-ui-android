@@ -1,0 +1,670 @@
+// Ouro's composed tree on Android: core's src/composed.mts (ouro-ui-core v0.18.0), ported. What an agent may put on a
+// person's screen, whatever format it arrived in: the components a catalog allows, the tree every renderer draws, the
+// validator for that tree, the data model its fields write by JSON Pointer, and what a press sends. Every button is a
+// declared action whose label, consent and press come from the app's catalog, so no sender can relabel a button or
+// loosen its consent. Decisions: core's docs/decisions/2026-11-14-composed-ui-own-tree.md and 2026-11-17-composed-fields.md.
+//
+// JSON values are Kotlin's: null, Boolean, Long or Double, String, List and Map ([ComposedJson]). A missing value and
+// null are both null here; core's rules treat them alike everywhere a renderer reads one.
+package bot.ouro.ui.hx.composed
+
+import bot.ouro.ui.actions.OuroConsent
+
+/** The version of Ouro's composed tree this port draws (core's `COMPOSED_VERSION`). */
+const val COMPOSED_VERSION = "1"
+
+/** A prop's kind (core's `PropKind`): what the validator checks. [kind] is core's name for it. */
+data class PropKind(val kind: String, val values: List<String> = emptyList(), val default: Any? = null) {
+    companion object {
+        val Text = PropKind("string")
+        val Texts = PropKind("strings")
+        val Children = PropKind("children")
+        val Terms = PropKind("terms")
+        val Action = PropKind("action")
+        val Input = PropKind("input")
+        val Path = PropKind("path")
+        fun choice(values: List<String>, default: String) = PropKind("enum", values, default)
+        fun flag(default: Boolean) = PropKind("boolean", default = default)
+        fun level(default: Int) = PropKind("level", default = default)
+    }
+}
+
+/** One prop of a component: what it is for an agent, whether the tree must carry it, and its kind. */
+data class ComposedProp(val description: String, val type: PropKind, val required: Boolean = false)
+
+/** A catalog component (core's `ComponentSpec`): one line for an agent, and its props in order. */
+data class ComposedComponent(val description: String, val props: Map<String, ComposedProp>)
+
+/** What pressing a composed button does (core's `Press`): run it, confirm then run it, or hand the person to the app. */
+enum class ComposedPress(val wire: String) {
+    Run("run"),
+    Confirm("confirm"),
+    Handoff("handoff"),
+    ;
+
+    companion object {
+        /** The press a consent class gives (core's `pressOf`). */
+        fun of(consent: OuroConsent): ComposedPress = when (consent) {
+            OuroConsent.PersonOnly -> Handoff
+            OuroConsent.Consequential -> Confirm
+            else -> Run
+        }
+    }
+}
+
+/** One input field of a catalog action: its label for the person, its kind, and the sibling field that names it. */
+data class ComposedField(
+    val label: String,
+    val kind: String,
+    val optional: Boolean,
+    val values: List<String>? = null,
+    /** The sibling input that carries this id's name, shown on a confirm sheet in its place. */
+    val shownAs: String? = null,
+)
+
+/** Where a person-only action is done, and the typed refusal every agent door answers (core's outcome, as JSON). */
+data class ComposedPersonOnly(val how: String, val refusal: Map<String, Any?>) {
+    /** The refusal's one-line summary. */
+    val summary: String get() = refusal["summary"] as? String ?: ""
+}
+
+/** An action as an app's catalog carries it (core's `CatalogAction`). */
+data class ComposedAction(
+    val consent: OuroConsent,
+    val press: ComposedPress,
+    val label: String,
+    val description: String,
+    val input: Map<String, ComposedField>,
+    val personOnly: ComposedPersonOnly? = null,
+)
+
+/** A problem in a composed tree: a JSON pointer into it, one sentence, and the typed refusal when one applies. */
+data class TreeProblem(val path: String, val message: String, val refusal: Map<String, Any?>? = null)
+
+/** What an app's resolver is asked to name: one prepared input of a button that confirms (core's `LabelContext`). */
+data class LabelContext(val action: String, val field: String, val value: String, val input: Map<String, Any?>)
+
+/**
+ * A node of the composed tree (core's `ComposedNode`): the component, its props with every value resolved and every
+ * default filled, and its children. [id] is what a press names as its source.
+ */
+data class ComposedNode(val id: String, val component: String, val props: Map<String, Any?>, val children: List<ComposedNode>) {
+    /** The node as JSON, as core writes it. */
+    fun toJson(): Map<String, Any?> = linkedMapOf("id" to id, "component" to component, "props" to props, "children" to children.map { it.toJson() })
+
+    companion object {
+        /**
+         * The node a JSON tree holds. Check it with [OuroComposed.validateTree] first: this reads its shape and nothing
+         * else, and throws [IllegalArgumentException] when a node isn't `{ id, component, props, children }`.
+         */
+        fun fromJson(json: Any?): ComposedNode {
+            val n = json as? Map<*, *>
+            val id = n?.get("id") as? String
+            val component = n?.get("component") as? String
+            val props = n?.get("props") as? Map<*, *>
+            val children = n?.get("children") as? List<*>
+            require(id != null && component != null && props != null && children != null) { "A node is { id, component, props, children }." }
+            @Suppress("UNCHECKED_CAST")
+            val typed = props as Map<String, Any?>
+            return ComposedNode(id, component, typed, children.map { fromJson(it) })
+        }
+    }
+}
+
+/** What pressing a composed button asks the app to do (core's `PersonPress`): always by the person. */
+data class PersonPress(
+    /** The action's id, which is also its MCP tool's name. */
+    val action: String,
+    /** The input the agent prepared, with each field the person filled in read when they pressed. */
+    val input: Map<String, Any?>,
+    val consent: OuroConsent,
+    /** The button's label, as the person read it. */
+    val label: String,
+    /** True for a consequential action the person confirmed. */
+    val confirmed: Boolean = false,
+) {
+    /** Always "person": a composed button is the person's door, never an agent's. */
+    val by: String get() = "person"
+
+    /** The press as core writes it: `{ action, input, consent, label, by, confirmed? }`. */
+    fun toJson(): Map<String, Any?> = linkedMapOf<String, Any?>("action" to action, "input" to input, "consent" to consent.wire, "label" to label, "by" to by)
+        .apply { if (confirmed) put("confirmed", true) }
+}
+
+/** What a renderer needs from a catalog (core's `Catalog`): its id, its components and what each action's button does. */
+data class ComposedCatalog(val catalogId: String, val components: Map<String, ComposedComponent>, val actions: Map<String, ComposedAction>) {
+    companion object {
+        /** The extension key a catalog carries its actions under. */
+        const val EXTENSION = "bot_ouroboros_hx"
+
+        /** Reads a catalog ouro-a2ui wrote, from its JSON text (core's `loadCatalog`). */
+        fun parse(text: String): ComposedCatalog = fromJson(ComposedJson.parse(text))
+
+        /**
+         * Reads a catalog ouro-a2ui wrote (core's `loadCatalog`). Its component specs are HX's, so a hand-edited catalog
+         * can't widen them; an action whose press isn't its consent's is refused too.
+         */
+        fun fromJson(json: Any?): ComposedCatalog {
+            val c = json as? Map<*, *>
+            val id = c?.get("catalogId") as? String
+            val names = c?.get("components") as? Map<*, *>
+            require(id != null && names != null) { "not an A2UI catalog: it has no catalogId or components. Fix: pass a catalog ouro-a2ui wrote." }
+            val components = linkedMapOf<String, ComposedComponent>()
+            for (name in names.keys.map { it.toString() }) {
+                components[name] = (if (name == "ActionButton") OuroComposed.ACTION_BUTTON else OuroComposed.COMPONENTS[name])
+                    ?: throw IllegalArgumentException("catalog $id: component $name is not Ouro HX's. Fix: regenerate it with ouro-a2ui catalog.")
+            }
+            val raw = ((c?.get("metadata") as? Map<*, *>)?.get("extensions") as? Map<*, *>)?.get(EXTENSION) as? Map<*, *>
+            val actions = linkedMapOf<String, ComposedAction>()
+            for ((k, v) in (raw?.get("actions") as? Map<*, *>).orEmpty()) actions[k.toString()] = action(id, k.toString(), v)
+            return ComposedCatalog(id, components, actions)
+        }
+
+        private fun action(catalog: String, name: String, json: Any?): ComposedAction {
+            val bad = { what: String -> IllegalArgumentException("catalog $catalog: action $name $what. Fix: regenerate it with ouro-a2ui catalog.") }
+            val a = json as? Map<*, *> ?: throw bad("is not an object")
+            val consent = OuroConsent.entries.firstOrNull { it.wire == a["consent"] } ?: throw bad("has no consent class")
+            val press = ComposedPress.entries.firstOrNull { it.wire == a["press"] } ?: throw bad("has no press")
+            if (press != ComposedPress.of(consent)) throw bad("presses ${press.wire}, but a ${consent.wire} action presses ${ComposedPress.of(consent).wire}")
+            val input = linkedMapOf<String, ComposedField>()
+            for ((k, f) in (a["input"] as? Map<*, *>).orEmpty()) {
+                val field = f as? Map<*, *> ?: throw bad("has an input field $k that is not an object")
+                input[k.toString()] = ComposedField(
+                    label = field["label"] as? String ?: k.toString(),
+                    kind = field["kind"] as? String ?: "string",
+                    optional = field["optional"] == true,
+                    values = (field["values"] as? List<*>)?.map { it.toString() },
+                    shownAs = field["shownAs"] as? String,
+                )
+            }
+            val po = a["personOnly"] as? Map<*, *>
+            @Suppress("UNCHECKED_CAST")
+            val personOnly = po?.let { ComposedPersonOnly(it["how"] as? String ?: "", (it["refusal"] as? Map<String, Any?>).orEmpty()) }
+            if (consent == OuroConsent.PersonOnly && personOnly == null) throw bad("is person-only but says nowhere how the person does it")
+            return ComposedAction(consent, press, a["label"] as? String ?: throw bad("has no label"), a["description"] as? String ?: "", input, personOnly)
+        }
+    }
+}
+
+/** Core's composed.mts: the components, the button rules, the validator, the data model and the press. */
+object OuroComposed {
+    private val TONES = listOf("neutral", "info", "success", "warning", "danger")
+
+    /** Ouro HX's catalog components, named as on web (core's `COMPONENTS`). */
+    val COMPONENTS: Map<String, ComposedComponent> = linkedMapOf(
+        "Card" to ComposedComponent(
+            "A raised surface that groups one thing's content; its children stack vertically.",
+            linkedMapOf("children" to ComposedProp("What the card holds, top to bottom.", PropKind.Children, required = true)),
+        ),
+        "Stack" to ComposedComponent(
+            "Lays children out in a column or a row with HX spacing.",
+            linkedMapOf(
+                "children" to ComposedProp("What the stack holds, in order.", PropKind.Children, required = true),
+                "direction" to ComposedProp("vertical stacks top to bottom; horizontal lays out a row that wraps.", PropKind.choice(listOf("vertical", "horizontal"), "vertical")),
+                "gap" to ComposedProp("Space between children, from HX's spacing scale.", PropKind.choice(listOf("none", "small", "medium", "large"), "medium")),
+            ),
+        ),
+        "Heading" to ComposedComponent(
+            "A title. Level 1 is a card's or page's title, 2 a section, 3 a subsection.",
+            linkedMapOf(
+                "text" to ComposedProp("The heading's words.", PropKind.Text, required = true),
+                "level" to ComposedProp("1, 2 or 3.", PropKind.level(2)),
+            ),
+        ),
+        "Text" to ComposedComponent(
+            "A paragraph of plain text.",
+            linkedMapOf(
+                "text" to ComposedProp("The words, plain text without Markdown.", PropKind.Text, required = true),
+                "tone" to ComposedProp("muted for secondary text such as a byline or a note.", PropKind.choice(listOf("default", "muted"), "default")),
+            ),
+        ),
+        "Image" to ComposedComponent(
+            "A picture with a description for people who can't see it.",
+            linkedMapOf(
+                "url" to ComposedProp("The image's https URL.", PropKind.Text, required = true),
+                "description" to ComposedProp("What the picture shows, for a screen reader; never \"image of\".", PropKind.Text, required = true),
+                "aspect" to ComposedProp("The frame's shape; the picture fills it.", PropKind.choice(listOf("landscape", "square", "portrait", "wide"), "landscape")),
+            ),
+        ),
+        "Badge" to ComposedComponent(
+            "A short label for a status or a category, such as \"Vegetarian\".",
+            linkedMapOf(
+                "text" to ComposedProp("One to three words.", PropKind.Text, required = true),
+                "tone" to ComposedProp("neutral unless the label is a status.", PropKind.choice(TONES, "neutral")),
+            ),
+        ),
+        "List" to ComposedComponent(
+            "A list of short plain-text items, such as ingredients or steps.",
+            linkedMapOf(
+                "items" to ComposedProp("The items, in order.", PropKind.Texts, required = true),
+                "ordered" to ComposedProp("true numbers the items, for steps that happen in order.", PropKind.flag(false)),
+            ),
+        ),
+        "DescriptionList" to ComposedComponent(
+            "Pairs of a term and its detail, such as \"Time\" and \"25 min\".",
+            linkedMapOf("items" to ComposedProp("The pairs, each { term, detail }.", PropKind.Terms, required = true)),
+        ),
+        "Separator" to ComposedComponent("A hairline between groups of content.", linkedMapOf()),
+        "Alert" to ComposedComponent(
+            "A message the person should notice: a warning, an error, a success or information.",
+            linkedMapOf(
+                "title" to ComposedProp("One line saying what happened.", PropKind.Text, required = true),
+                "text" to ComposedProp("What to do about it, if anything.", PropKind.Text),
+                "tone" to ComposedProp("How serious it is.", PropKind.choice(listOf("info", "success", "warning", "danger"), "info")),
+            ),
+        ),
+        "TextField" to ComposedComponent(
+            "A field the person types an answer into. It starts with what the data model holds at value and writes their answer there; bind an ActionButton's input to the same path, and pressing it sends what they typed.",
+            linkedMapOf(
+                "label" to ComposedProp("What the field asks for, in a few words, such as \"Servings\".", PropKind.Text, required = true),
+                "value" to ComposedProp("Where the answer goes, as a JSON pointer into the data model, such as /servings.", PropKind.Path, required = true),
+                "hint" to ComposedProp("One line under the field saying what to enter, when the label isn't enough.", PropKind.Text),
+                "type" to ComposedProp("text for words; number when the answer is a number, which the field writes as one.", PropKind.choice(listOf("text", "number"), "text")),
+                "multiline" to ComposedProp("true for a longer answer over several lines, such as a note.", PropKind.flag(false)),
+            ),
+        ),
+        "Checkbox" to ComposedComponent(
+            "A yes-or-no choice the person ticks. It starts with what the data model holds at value and writes true or false there.",
+            linkedMapOf(
+                "label" to ComposedProp("The choice, said so that ticking it means yes, such as \"Make it vegetarian\".", PropKind.Text, required = true),
+                "value" to ComposedProp("Where the answer goes, as a JSON pointer into the data model, such as /vegetarian.", PropKind.Path, required = true),
+                "hint" to ComposedProp("One line under the choice, when the label isn't enough.", PropKind.Text),
+            ),
+        ),
+        "Select" to ComposedComponent(
+            "One choice from a short list. It starts with what the data model holds at value and writes the chosen option there, as text.",
+            linkedMapOf(
+                "label" to ComposedProp("What the person is choosing, in a few words, such as \"Oven\".", PropKind.Text, required = true),
+                "value" to ComposedProp("Where the choice goes, as a JSON pointer into the data model, such as /oven.", PropKind.Path, required = true),
+                "options" to ComposedProp("The choices, in order, as the person reads them.", PropKind.Texts, required = true),
+                "hint" to ComposedProp("One line under the list, when the label isn't enough.", PropKind.Text),
+            ),
+        ),
+    )
+
+    /** The components a person answers with: each writes to the data model at its `value`. */
+    val INPUT_COMPONENTS: List<String> = listOf("TextField", "Checkbox", "Select")
+
+    /** A button for one of the app's declared actions (core's `ACTION_BUTTON`). */
+    val ACTION_BUTTON = ComposedComponent(
+        "A button for one of the app's declared actions. Its label and what pressing it does come from the action, so you choose only the action, the input you prepared and its emphasis.",
+        linkedMapOf(
+            "action" to ComposedProp("The action's id.", PropKind.Action, required = true),
+            "input" to ComposedProp("The input you prepared, by field name; a value may bind to the data model with {\"@path\"}, and one bound to a field the person fills in is read when they press. Never give input to a person-only action.", PropKind.Input),
+            "emphasis" to ComposedProp("primary for the one main action on a surface; secondary for the rest.", PropKind.choice(listOf("primary", "secondary"), "secondary")),
+        ),
+    )
+
+    /** How deep a tree may nest: far past any screen, short of the stack. */
+    const val MAX_DEPTH = 100
+
+    private val BUTTON_PROPS = listOf("action", "label", "consent", "press", "input", "confirm", "handoff", "emphasis", "@label")
+
+    /** HX's components, plus ActionButton when the catalog has actions (core's `componentsFor`). */
+    fun componentsFor(actions: Map<String, ComposedAction>): Map<String, ComposedComponent> =
+        if (actions.isEmpty()) COMPONENTS else COMPONENTS + ("ActionButton" to ACTION_BUTTON)
+
+    // -------------------------------------------------------------------------------------------------------------
+    // The data model
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A value bound to the data model: `{ "@path": "/servings" }`. */
+    fun isBinding(v: Any?): Boolean = v is Map<*, *> && v.size == 1 && v["@path"] is String
+
+    private fun unescape(key: String) = key.replace("~1", "/").replace("~0", "~")
+
+    /** An array index as core reads one: ASCII digits only (`/^\d+$/`), or null. */
+    private fun index(key: String): Int? = if (key.isNotEmpty() && key.all { it in '0'..'9' }) key.toIntOrNull() else null
+
+    /** Reads a JSON pointer (RFC 6901). A missing value is null. */
+    fun getPointer(data: Any?, pointer: String): Any? {
+        if (pointer == "" || pointer == "/") return data
+        var cur: Any? = data
+        for (raw in pointer.removePrefix("/").split("/")) {
+            val key = unescape(raw)
+            val here = cur
+            cur = when (here) {
+                is List<*> -> index(key)?.let { here.getOrNull(it) }
+                is Map<*, *> -> here[key]
+                else -> return null
+            }
+            if (cur == null) return null
+        }
+        return cur
+    }
+
+    /** Writes a JSON pointer, creating objects on the way; null deletes. It returns a copy and leaves [data] as it was. */
+    @Suppress("UNCHECKED_CAST")
+    fun setPointer(data: Any?, pointer: String, value: Any?): Any? {
+        if (pointer == "" || pointer == "/") return value ?: LinkedHashMap<String, Any?>()
+        val keys = pointer.removePrefix("/").split("/").map(::unescape)
+        val root: Any = if (data is Map<*, *> || data is List<*>) copy(data)!! else LinkedHashMap<String, Any?>()
+        var cur: Any = root
+        keys.forEachIndexed { i, k ->
+            val last = i == keys.lastIndex
+            when (cur) {
+                is MutableList<*> -> {
+                    val list = cur as MutableList<Any?>
+                    val index = index(k)
+                    // JavaScript sets a named property on an array, which JSON never shows, and an index past the end
+                    // leaves holes. Write nowhere for either, so no pointer can make the app fill a huge list.
+                    if (index == null || index > list.size) {
+                        cur = LinkedHashMap<String, Any?>()
+                        return@forEachIndexed
+                    }
+                    if (last) {
+                        if (value == null) {
+                            if (index < list.size) list.removeAt(index)
+                        } else if (index == list.size) {
+                            list += value
+                        } else {
+                            list[index] = value
+                        }
+                        return@forEachIndexed
+                    }
+                    if (index == list.size) list += null
+                    val next = list[index]
+                    if (next !is Map<*, *> && next !is List<*>) list[index] = LinkedHashMap<String, Any?>()
+                    cur = list[index]!!
+                }
+                else -> {
+                    val map = cur as MutableMap<String, Any?>
+                    if (last) {
+                        if (value == null) map.remove(k) else map[k] = value
+                        return@forEachIndexed
+                    }
+                    val next = map[k]
+                    if (next !is Map<*, *> && next !is List<*>) map[k] = LinkedHashMap<String, Any?>()
+                    cur = map[k]!!
+                }
+            }
+        }
+        return root
+    }
+
+    /** A deep, writable copy of a JSON value. */
+    private fun copy(v: Any?): Any? = when (v) {
+        is Map<*, *> -> LinkedHashMap<String, Any?>().also { m -> for ((k, x) in v) m[k.toString()] = copy(x) }
+        is List<*> -> ArrayList<Any?>().also { l -> for (x in v) l += copy(x) }
+        else -> v
+    }
+
+    /** A value as text: numbers and booleans as written, null as "", others as JSON (core's `asText`). */
+    fun asText(v: Any?): String = when (v) {
+        null -> ""
+        is String -> v
+        is Number -> ComposedJson.number(v)
+        is Boolean -> v.toString()
+        else -> ComposedJson.stringify(v)
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // The button rules
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * The rows of a confirm sheet: each prepared input with the person's label. An id shows its name (the app's
+     * resolver, else the sibling `shownAs` names, else the value itself), with the id as `raw` when the name replaced
+     * it; a name field that stands in for an id has no row of its own.
+     */
+    private fun confirmFields(action: String, a: ComposedAction, input: Map<String, Any?>, label: ((LabelContext) -> String?)?): List<Map<String, Any?>> {
+        val names = a.input.filter { (k, f) -> input.containsKey(k) && f.shownAs != null && a.input.containsKey(f.shownAs) }.map { it.value.shownAs!! }.toSet()
+        return a.input.filter { (k) -> input.containsKey(k) && k !in names }.map { (k, f) ->
+            val bound = input[k]
+            if (isBinding(bound)) return@map linkedMapOf<String, Any?>("label" to f.label, "value" to "", "bind" to (bound as Map<*, *>)["@path"])
+            val raw = asText(bound)
+            val sibling = f.shownAs?.let { input[it] }
+            val prepared = (sibling as? String)?.trim()?.takeIf { it.isNotEmpty() }
+            val value = label?.invoke(LabelContext(action, k, raw, input)) ?: prepared ?: raw
+            if (value == raw) linkedMapOf<String, Any?>("label" to f.label, "value" to value) else linkedMapOf<String, Any?>("label" to f.label, "value" to value, "raw" to raw)
+        }
+    }
+
+    /**
+     * The props of an ActionButton for an action and the input an agent prepared: everything else comes from the
+     * catalog (core's `actionButtonProps`). [label] is the app's own word for an id, which wins over the agent's.
+     */
+    fun actionButtonProps(cat: ComposedCatalog, action: String, prepared: Map<String, Any?>, label: ((LabelContext) -> String?)? = null): Map<String, Any?> {
+        val a = cat.actions[action] ?: throw IllegalArgumentException("$action is not one of the app's actions: ${cat.actions.keys.joinToString(", ")}.")
+        val input = if (a.personOnly != null) emptyMap() else prepared
+        val props = linkedMapOf<String, Any?>("action" to action, "label" to a.label, "consent" to a.consent.wire, "press" to a.press.wire, "input" to input)
+        if (a.press == ComposedPress.Confirm) props["confirm"] = linkedMapOf<String, Any?>("title" to a.label, "description" to a.description, "fields" to confirmFields(action, a, input, label))
+        if (a.personOnly != null) props["handoff"] = a.personOnly.how
+        return props
+    }
+
+    /** Why an agent can't press a button through the screen (core's `agentPressProblem`): agents use their own doors. */
+    fun agentPressProblem(cat: ComposedCatalog, name: String?): TreeProblem {
+        val a = name?.let { cat.actions[it] }
+        val po = a?.personOnly
+        if (po != null) return TreeProblem("", po.summary, po.refusal)
+        if (a != null) return TreeProblem("", "$name is an action, and agents run actions through their own tool (MCP $name), not through the person's screen.")
+        return TreeProblem("", "This catalog has no functions an agent may call${if (name != null) ", so $name is not one" else ""}.")
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // The validator
+    // -------------------------------------------------------------------------------------------------------------
+
+    private fun json(v: Any?) = ComposedJson.stringify(v)
+
+    private fun checkProp(problems: MutableList<TreeProblem>, key: String, p: ComposedProp, v: Any?, at: String) {
+        val bad = { expected: String -> problems += TreeProblem(at, "$key is $expected, got ${json(v)}.") }
+        when (p.type.kind) {
+            "string" -> if (v !is String) bad("text")
+            "strings" -> if (v !is List<*> || !v.all { it is String }) bad("a list of text")
+            "boolean" -> if (v !is Boolean) bad("true or false")
+            "enum" -> if (v !is String || v !in p.type.values) bad("one of ${p.type.values.joinToString(", ")}")
+            "level" -> if (!(v is Number && v.toDouble() in listOf(1.0, 2.0, 3.0))) bad("1, 2 or 3")
+            "path" -> if (v !is String || !v.startsWith("/")) bad("a JSON pointer into the data model, such as /servings")
+            "terms" -> if (v !is List<*> || !v.all { it is Map<*, *> && it.size == 2 && it["term"] is String && it["detail"] is String }) bad("a list of { term, detail } text")
+        }
+    }
+
+    /**
+     * Every problem in a composed tree against a catalog (core's `validateTree`): each component is the catalog's, each
+     * prop is resolved and of its kind, and each ActionButton is exactly what the catalog says its action's button is,
+     * so no adapter and no sender can relabel a button or loosen its consent. An empty list means it renders.
+     */
+    fun validateTree(cat: ComposedCatalog, node: Any?, path: String = ""): List<TreeProblem> {
+        val problems = mutableListOf<TreeProblem>()
+        fun visit(n: Any?, at: String, depth: Int) {
+            // No screen nests this deep; a tree that does is refused before it can exhaust the stack.
+            if (depth > MAX_DEPTH) {
+                problems += TreeProblem(at, "The tree nests more than $MAX_DEPTH components deep.")
+                return
+            }
+            val m = n as? Map<*, *>
+            if (m == null || m["id"] !is String || m["component"] !is String || m["props"] !is Map<*, *> || m["children"] !is List<*>) {
+                problems += TreeProblem(at, "A node is { id, component, props, children }.")
+                return
+            }
+            val component = m["component"] as String
+            val spec = cat.components[component]
+            if (spec == null) {
+                problems += TreeProblem("$at/component", "${json(component)} is not in this catalog; use one of ${cat.components.keys.joinToString(", ")}.")
+                return
+            }
+            val props = m["props"] as Map<*, *>
+            val children = m["children"] as List<*>
+            val allowed = if (component == "ActionButton") BUTTON_PROPS else spec.props.filter { it.value.type.kind != "children" }.keys + "@label"
+            for (key in props.keys.map { it.toString() }) if (key !in allowed) problems += TreeProblem("$at/props/$key", "$component has no $key.")
+            if (props.containsKey("@label") && props["@label"] !is String) problems += TreeProblem("$at/props/@label", "@label is text.")
+            for ((key, p) in spec.props) {
+                if (p.type.kind == "children" || p.type.kind == "action" || p.type.kind == "input") continue
+                if (!props.containsKey(key)) {
+                    if (p.required) problems += TreeProblem("$at/props/$key", "$component needs $key: ${p.description}")
+                    continue
+                }
+                checkProp(problems, key, p, props[key], "$at/props/$key")
+            }
+            if (component == "ActionButton") button(cat, problems, props, at)
+            if (!spec.props.containsKey("children") && children.isNotEmpty()) problems += TreeProblem("$at/children", "$component has no children.")
+            children.forEachIndexed { i, c -> visit(c, "$at/children/$i", depth + 1) }
+        }
+        visit(node, path, 1)
+        return problems
+    }
+
+    /** A node's ComposedNode, checked: [validateTree] on its JSON. */
+    fun validateTree(cat: ComposedCatalog, node: ComposedNode): List<TreeProblem> = validateTree(cat, node.toJson())
+
+    private fun button(cat: ComposedCatalog, problems: MutableList<TreeProblem>, props: Map<*, *>, at: String) {
+        val id = props["action"]
+        val a = (id as? String)?.let { cat.actions[it] }
+        if (a == null || id !is String) {
+            problems += TreeProblem("$at/props/action", "${if (props.containsKey("action")) json(id) else "undefined"} is not one of the app's actions: ${cat.actions.keys.joinToString(", ")}.")
+            return
+        }
+        val input = props["input"]
+        if (input !is Map<*, *>) {
+            problems += TreeProblem("$at/props/input", "input is an object of field values.")
+            return
+        }
+        if (a.personOnly != null && input.isNotEmpty()) {
+            problems += TreeProblem("$at/props/input", a.personOnly.summary, a.personOnly.refusal)
+            return
+        }
+        for ((k, v) in input) {
+            if (v is Map<*, *> && v.containsKey("@path") && !(isBinding(v) && (v["@path"] as String).startsWith("/"))) {
+                problems += TreeProblem("$at/props/input/$k", "$k is a value, or {\"@path\": \"/...\"} bound to the data model.")
+            }
+        }
+        @Suppress("UNCHECKED_CAST")
+        val expected = actionButtonProps(cat, id, input as Map<String, Any?>)
+        for (key in listOf("label", "consent", "press", "handoff")) {
+            val sent = if (props.containsKey(key)) json(props[key]) else null
+            val want = if (expected.containsKey(key)) json(expected[key]) else null
+            if (sent != want) problems += TreeProblem("$at/props/$key", "$id's $key is the catalog's ${json(expected[key])}, never the sender's.")
+        }
+        if (a.press == ComposedPress.Confirm) {
+            val c = props["confirm"] as? Map<*, *>
+            if (c == null || c["title"] != a.label || c["description"] != a.description || c["fields"] !is List<*>) {
+                problems += TreeProblem("$at/props/confirm", "$id confirms, with the catalog's title and description and a row per prepared input.")
+            }
+        } else if (props.containsKey("confirm")) {
+            problems += TreeProblem("$at/props/confirm", "$id doesn't confirm; only a consequential action does.")
+        }
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // The press
+    // -------------------------------------------------------------------------------------------------------------
+
+    /**
+     * A button as it stands when the person presses it (core's `resolveButton`): each input bound to the data model
+     * replaced by what [data] holds there now (null when nothing), and each bound row of its confirm sheet showing that
+     * value. A button with nothing bound comes back as it is.
+     */
+    fun resolveButton(button: ComposedNode, data: Any?): ComposedNode {
+        val p = button.props
+        val input = p["input"] as? Map<*, *>
+        if (input == null || input.values.none(::isBinding)) return button
+        val resolved = LinkedHashMap<String, Any?>()
+        for ((k, v) in input) resolved[k.toString()] = if (isBinding(v)) getPointer(data, (v as Map<*, *>)["@path"] as String) else v
+        val props = LinkedHashMap(p)
+        props["input"] = resolved
+        val confirm = p["confirm"] as? Map<*, *>
+        val fields = confirm?.get("fields") as? List<*>
+        if (confirm != null && fields != null) {
+            val rows = fields.map { row ->
+                val m = row as? Map<*, *>
+                val bind = m?.get("bind")
+                if (m != null && bind is String) linkedMapOf<String, Any?>("label" to m["label"], "value" to asText(getPointer(data, bind))) else row
+            }
+            props["confirm"] = LinkedHashMap<String, Any?>().apply {
+                for ((k, v) in confirm) put(k.toString(), v)
+                put("fields", rows)
+            }
+        }
+        return button.copy(props = props)
+    }
+
+    /** A confirm sheet: the action's label and description, and a row per prepared input. */
+    data class ConfirmSheet(val title: String, val description: String, val rows: List<ConfirmRow>)
+
+    /** One row of a confirm sheet: the field's label and the value, with the id as [raw] when a name replaced it. */
+    data class ConfirmRow(val label: String, val value: String, val raw: String? = null)
+
+    /**
+     * The confirm sheet a consequential button shows when the person presses it, or null for a button that doesn't
+     * confirm. Its rows are built from the catalog and the button's input, never read from the tree: core's validator
+     * checks a sheet's title and description but not its rows, so a sender could otherwise show the person one thing
+     * and send another. Rows bound to a field read [data]; [label] is the app's own word for an id.
+     */
+    fun confirmSheet(cat: ComposedCatalog, button: ComposedNode, data: Any?, label: ((LabelContext) -> String?)? = null): ConfirmSheet? {
+        val action = button.props["action"] as? String ?: return null
+        val a = cat.actions[action] ?: return null
+        if (a.press != ComposedPress.Confirm) return null
+        @Suppress("UNCHECKED_CAST")
+        val input = (button.props["input"] as? Map<String, Any?>).orEmpty()
+        val rebuilt = resolveButton(button.copy(props = actionButtonProps(cat, action, input, label)), data)
+        val confirm = rebuilt.props["confirm"] as Map<*, *>
+        val rows = (confirm["fields"] as List<*>).map { row ->
+            val r = row as Map<*, *>
+            ConfirmRow(r["label"].toString(), asText(r["value"]), r["raw"] as? String)
+        }
+        return ConfirmSheet(a.label, a.description, rows)
+    }
+
+    /** What [personPress] refuses: a person-only button's press, or a consequential one's before the person confirms. */
+    class PressRefused(message: String) : IllegalStateException(message)
+
+    /**
+     * What pressing a composed button asks the app to do (core's `personPress`), after confirming for a consequential
+     * one. A person-only button never asks: it hands the person to the app's own screen, and this throws
+     * [PressRefused]. With [data], an input bound to a field the person filled in is read from it.
+     */
+    fun personPress(button: ComposedNode, confirmed: Boolean = false, data: Any? = null): PersonPress {
+        val p = (if (data == null) button else resolveButton(button, data)).props
+        val action = p["action"].toString()
+        if (p["press"] == ComposedPress.Handoff.wire) throw PressRefused("$action is person-only; its button hands the person to the app, so it sends no action.")
+        if (p["press"] == ComposedPress.Confirm.wire && !confirmed) throw PressRefused("$action is consequential; send its action only after the person confirms.")
+        @Suppress("UNCHECKED_CAST")
+        val input = (p["input"] as? Map<String, Any?>).orEmpty()
+        return PersonPress(
+            action = action,
+            input = input,
+            consent = OuroConsent.entries.first { it.wire == p["consent"] },
+            label = p["label"] as String,
+            confirmed = p["press"] == ComposedPress.Confirm.wire,
+        )
+    }
+
+    // -------------------------------------------------------------------------------------------------------------
+    // What a tool result carries
+    // -------------------------------------------------------------------------------------------------------------
+
+    /** A tool result's composed tree and its data model, or why it can't be drawn. */
+    sealed interface Read {
+        /** The tree validated against the catalog, and the data model its fields start from. */
+        data class Ready(val tree: ComposedNode, val data: Map<String, Any?>) : Read
+
+        /** Why it can't be drawn: each problem says where and why. */
+        data class Refused(val problems: List<TreeProblem>) : Read
+    }
+
+    /**
+     * Reads an MCP tool result's `structuredContent.ouro` (core's mcp-app.mts: `{ version, catalogId, tree, data? }`)
+     * and validates its tree against [cat]. Pass the whole result, its `structuredContent`, or the `ouro` object itself.
+     * A result that carries A2UI messages instead is refused: Android draws Ouro's tree, not A2UI.
+     */
+    fun read(cat: ComposedCatalog, result: Any?): Read {
+        val r = result as? Map<*, *>
+        val structured = (r?.get("structuredContent") as? Map<*, *>) ?: r
+        val ouro = (structured?.get("ouro") as? Map<*, *>) ?: structured?.takeIf { it.containsKey("tree") && it.containsKey("version") }
+        if (ouro == null) {
+            val a2ui = structured?.containsKey("a2ui") == true
+            return Read.Refused(listOf(TreeProblem("/structuredContent", if (a2ui) "This result carries A2UI messages; Android draws Ouro's composed tree. Fix: send the tree (core's mcpAppTreeResult)." else "This result carries no structuredContent.ouro. Fix: send the tree (core's mcpAppTreeResult).")))
+        }
+        if (ouro["version"] != COMPOSED_VERSION) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/version", "This renderer draws version $COMPOSED_VERSION of Ouro's tree, got ${json(ouro["version"])}.")))
+        if (ouro["catalogId"] != cat.catalogId) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/catalogId", "This renderer has only the catalog ${cat.catalogId}.")))
+        val data = ouro["data"]
+        if (data != null && data !is Map<*, *>) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/data", "data is the data model, an object.")))
+        val problems = validateTree(cat, ouro["tree"], "/structuredContent/ouro/tree")
+        if (problems.isNotEmpty()) return Read.Refused(problems)
+        @Suppress("UNCHECKED_CAST")
+        val model = (data as? Map<String, Any?>).orEmpty()
+        return Read.Ready(ComposedNode.fromJson(ouro["tree"]), model)
+    }
+}

@@ -1,9 +1,10 @@
 {
-  "coreTag": "v0.15.0",
+  "coreTag": "v0.18.0",
+  "coreCommit": "2e8069b82fbcf88ae7fa01f7c409af5c4ae2a5a5",
   "files": {
     "vendor/core/ouro-actions.mts": {
       "from": "dist/actions/ouro-actions.mts",
-      "sha256": "37b1f9dd0daa0bdb6b26aed5b292bc498740210f7895991c09e6d34c63d7c6fa"
+      "sha256": "ad2250d789e656a906d89317a7ae81725225642d0407dfc06bf051d810ac4199"
     },
     "vendor/core/ouro-actions-android.mts": {
       "from": "dist/actions/ouro-actions-android.mts",
@@ -33,9 +34,85 @@
       "from": "dist/hx/components/item.spec.json",
       "sha256": "1d93608ad689ee65e7415070376aa1803838f2b24b0ff11f5d4b810e1be057ff"
     },
+    "vendor/core/components/checkbox.spec.json": {
+      "from": "dist/hx/components/checkbox.spec.json",
+      "sha256": "28565ffadfa8cf05e8063c413c786e3d517df276a748c9c26b83fa653028c2e1"
+    },
+    "vendor/core/components/text-field.spec.json": {
+      "from": "dist/hx/components/text-field.spec.json",
+      "sha256": "afb911bd7e1cefcd2acadc19eed9378b972da12987b90a627c04113e4fbe991f"
+    },
+    "vendor/core/components/separator.spec.json": {
+      "from": "dist/hx/components/separator.spec.json",
+      "sha256": "84062fb0ea4cce3afa952df1730b3548f37271c34f9bcca9653aacceab9ef9c6"
+    },
+    "vendor/core/components/description-list.spec.json": {
+      "from": "dist/hx/components/description-list.spec.json",
+      "sha256": "11cac2a8e2f6295f0206a1d23b2cf9ef10e3a252152b1cb1ec6e89e7f5874d69"
+    },
+    "vendor/core/composed/catalog.json": {
+      "from": "dist/hx/a2ui/catalog.json",
+      "sha256": "3bd062f13485ae42bc0e871735d448f1c34242e65b198d81853c16f8b50ced9f"
+    },
+    "vendor/core/composed/recipe.catalog.json": {
+      "from": "standard/hx/a2ui/conformance/recipe.catalog.json",
+      "sha256": "67e44a7f4c6dad70db1174b685b7a6c9d04f3be43d8dcc43d80ee4a1e2622b93"
+    },
+    "vendor/core/composed/cases/action-buttons.json": {
+      "from": "standard/hx/a2ui/conformance/cases/action-buttons.json",
+      "sha256": "68da62e41d6cb73e04043d4521cca5dd91f0d3dcb447c7043ca1c31f20d53fc2"
+    },
+    "vendor/core/composed/cases/bindings.json": {
+      "from": "standard/hx/a2ui/conformance/cases/bindings.json",
+      "sha256": "caa7bf2452ece1f50b847f255292faa3ca7c23172f3c388234eb08839f0b0f95"
+    },
+    "vendor/core/composed/cases/confirm-names.json": {
+      "from": "standard/hx/a2ui/conformance/cases/confirm-names.json",
+      "sha256": "7238626bd45ae322cc54f9fd1fa2479237e7246e0fd95e979a9470ac8e4e3748"
+    },
+    "vendor/core/composed/cases/inputs.json": {
+      "from": "standard/hx/a2ui/conformance/cases/inputs.json",
+      "sha256": "b194af5640d8526675467c53cf4182cece7dafc0f7e0cea5b1161225e9cc0d90"
+    },
+    "vendor/core/composed/cases/invalid-agent-presses.json": {
+      "from": "standard/hx/a2ui/conformance/cases/invalid-agent-presses.json",
+      "sha256": "f50ca5d84fdbb60a383c1eed4f7fff9787e3bf8d40d080de1c2466fb483785fe"
+    },
+    "vendor/core/composed/cases/invalid-field-value.json": {
+      "from": "standard/hx/a2ui/conformance/cases/invalid-field-value.json",
+      "sha256": "e4ce157ac55b1a7ed8f280a5017e60508e6c95f86e742f541c24de820d28bb3f"
+    },
+    "vendor/core/composed/cases/invalid-free-button.json": {
+      "from": "standard/hx/a2ui/conformance/cases/invalid-free-button.json",
+      "sha256": "05ef795b436b35e685391a81cad01ce3de681e8bedf9b392907200657f473edb"
+    },
+    "vendor/core/composed/cases/invalid-person-only-input.json": {
+      "from": "standard/hx/a2ui/conformance/cases/invalid-person-only-input.json",
+      "sha256": "238e3ce6cf63f5dead54f5cb622feecad460e52e29fcf85f87f44f46f7e5af47"
+    },
+    "vendor/core/composed/cases/invalid-styling.json": {
+      "from": "standard/hx/a2ui/conformance/cases/invalid-styling.json",
+      "sha256": "0b5fa0760634e7994794a8c5073b6e2962b3552d430bd8c9dac8a9c2ea1fe593"
+    },
+    "vendor/core/composed/cases/invalid-tree.json": {
+      "from": "standard/hx/a2ui/conformance/cases/invalid-tree.json",
+      "sha256": "83b47f503beef9fb4e162925a147ef36cb48c7214a127a4317de0b243a30cdb5"
+    },
+    "vendor/core/composed/cases/recipe-card-agent.json": {
+      "from": "standard/hx/a2ui/conformance/cases/recipe-card-agent.json",
+      "sha256": "256b6b249b11102efdca574c707700afe63c30017e3362ed1dc837bcb82c1a55"
+    },
+    "vendor/core/composed/cases/templates.json": {
+      "from": "standard/hx/a2ui/conformance/cases/templates.json",
+      "sha256": "0b52a6ffffd57a79815719f444152a64889d90af5dea61142ce86fe335067b15"
+    },
+    "vendor/core/composed/cases/updates.json": {
+      "from": "standard/hx/a2ui/conformance/cases/updates.json",
+      "sha256": "d79ec09dd54469e9f7dee4169d943a6c5cc4b2393ada09d5f78c00c3dfa79a7c"
+    },
     "ouro-hx/src/main/kotlin/bot/ouro/ui/hx/tokens/OuroTokens.kt": {
       "from": "dist/android/OuroTokens.kt",
-      "sha256": "9ec47f53db1b7f6bac401f3fa693e2bfeb87d6d5b873477808ecef717a18f171"
+      "sha256": "ea049ed77c95e3d186394ddb71a82213d44f25ee16824b9da35e034da390af5e"
     }
   }
 }
