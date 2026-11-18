@@ -31,13 +31,13 @@ import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h2000dp-xxhdpi")
+@Config(qualifiers = "w411dp-h4000dp-xxhdpi")
 class ClaimsTest {
     @get:Rule
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -63,6 +63,19 @@ class ClaimsTest {
     private fun SemanticsNode.report() = parseOuroReport(config[OuroReport])
     private fun SemanticsNode.tag() = config.getOrNull(SemanticsProperties.TestTag) ?: "#$id"
     private fun SemanticsNode.words() = (config.getOrNull(SemanticsProperties.Text) ?: emptyList()).joinToString(" ") { it.text }
+    /** What TalkBack names it by: its content description when it has one, else its words. */
+    private fun SemanticsNode.name() = config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: words()
+    private fun SemanticsNode.within(): List<SemanticsNode> = listOf(this) + children.flatMap { it.within() }
+
+    /** The controls a component draws, which a person presses or types into: the node itself, or those inside it. */
+    private fun controls(kind: String, n: SemanticsNode): List<SemanticsNode> = when (kind) {
+        "checkbox" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) }
+        "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.contains(SemanticsActions.OnClick) }
+        else -> listOf(n)
+    }
+
+    /** Ends with ", required" exactly when its report says it is required. */
+    private fun requiredSpoken(root: SemanticsNode, control: SemanticsNode) = (root.report()["required"] == "true") == control.name().endsWith(", required")
     private fun color(hex: String) = Color(hex.removePrefix("#").toLong(16).toInt())
 
     /** What TalkBack and agents must read for each component (its spec's accessibility.android). */
@@ -79,24 +92,44 @@ class ClaimsTest {
                     .any { h -> h.words().isNotBlank() && generateSequence(h.parent) { it.parent }.any { it.id == n.id } }
             "item" -> if (n.report()["pressable"] == "true") role == Role.Button && clickable && focusable && n.words().isNotBlank()
             else !clickable && !focusable && n.words().isNotBlank()
+            "checkbox" -> controls(kind, n).let { cs ->
+                cs.size == 1 && cs.all { x ->
+                    x.config.getOrNull(SemanticsProperties.Role) == Role.Checkbox && x.config.contains(SemanticsActions.OnClick) &&
+                        x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x)
+                }
+            }
+            "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) }.let { fields ->
+                fields.size == 1 && fields.all { x ->
+                    x.config.contains(SemanticsProperties.EditableText) && x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x)
+                } && n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Switch }.all { it.name() == "Show password" }
+            }
+            // A line is nothing to TalkBack; a labelled one is its label, as text.
+            "separator" -> role == null && !clickable && !focusable &&
+                if (n.report()["labelled"] == "true") n.words().isNotBlank() else n.name().isBlank()
+            // Each pair is one element, its term then its details.
+            "description-list" -> c.getOrNull(SemanticsProperties.IsTraversalGroup) == true &&
+                n.within().filter { it.config.isMergingSemanticsOfDescendants }.let { pairs ->
+                    pairs.size.toString() == n.report()["pairs"] && pairs.all { (it.config.getOrNull(SemanticsProperties.Text)?.size ?: 0) == 2 && !it.config.contains(SemanticsActions.OnClick) }
+                }
             else -> false
         }
     }
 
     /** The colour pairs each component's words sit on, from its report. */
-    private fun pairs(r: Map<String, String>): List<Triple<String, String, String>> =
-        if (r["kind"] == "button" || r["kind"] == "badge") listOf(Triple("label", r["label"]!!, r["behind"]!!))
-        else listOf(Triple("title", r["title"]!!, r["surface"]!!), Triple("description", r["description"]!!, r["surface"]!!))
+    private fun pairs(r: Map<String, String>): List<Triple<String, String, String>> {
+        val behind = r["behind"] ?: r["surface"]!!
+        return listOf("label", "title", "text", "description", "error", "term", "details").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } }
+    }
 
     private fun nameSpoken(kind: String): Result {
         under(LIGHT)
-        return all(nodes(kind).map { spoken(kind, it) to "${it.tag()}: role ${it.config.getOrNull(SemanticsProperties.Role)} \"${it.words()}\"" }, "${kind}s named and typed as the spec says")
+        return all(nodes(kind).map { n -> spoken(kind, n) to "${n.tag()}: " + controls(kind, n).joinToString { "role ${it.config.getOrNull(SemanticsProperties.Role)} \"${it.name()}\"" } }, "${kind}s named and typed as the spec says")
     }
 
     private fun targetTouch(kind: String): Result {
         under(LIGHT)
         val d = rule.density.density
-        return all(nodes(kind).map { n -> (n.size.width / d >= 48f && n.size.height / d >= 48f) to "${n.tag()} ${(n.size.width / d).toInt()}x${(n.size.height / d).toInt()} dp" }, "${kind}s at least 48x48 dp")
+        return all(nodes(kind).flatMap { root -> controls(kind, root).map { n -> (n.size.width / d >= 48f && n.size.height / d >= 48f) to "${root.tag()} ${(n.size.width / d).toInt()}x${(n.size.height / d).toInt()} dp" } }, "$kind controls at least 48x48 dp")
     }
 
     private fun motionReduced(kind: String): Result {
@@ -141,9 +174,16 @@ class ClaimsTest {
             val s = base.copy(id = "${theme.id}-${base.id}", theme = theme)
             under(s)
             val min = if (s.increasedContrast) OuroColor.INCREASED_TEXT_CONTRAST else OuroColor.TEXT_CONTRAST
-            for (n in nodes(kind)) for ((what, fg, bg) in pairs(n.report())) {
-                val r = OuroColor.contrast(color(fg), color(bg))
-                checks += (r >= min - 0.01) to "${s.id} ${n.tag()} $what ${"%.2f".format(r)}:1"
+            for (n in nodes(kind)) {
+                for ((what, fg, bg) in pairs(n.report())) {
+                    val r = OuroColor.contrast(color(fg), color(bg))
+                    checks += (r >= min - 0.01) to "${s.id} ${n.tag()} $what ${"%.2f".format(r)}:1"
+                }
+                // A box's or a field's edge is how it is found: 3:1 on what is behind it.
+                n.report()["edge"]?.let { edge ->
+                    val r = OuroColor.contrast(color(edge), color(n.report()["behind"]!!))
+                    checks += (r >= OuroColor.INCREASED_LINE_CONTRAST - 0.01) to "${s.id} ${n.tag()} edge ${"%.2f".format(r)}:1"
+                }
             }
         }
         // The pixels under the words: in Pearl, light, dark and increased contrast, the strongest pixel inside each

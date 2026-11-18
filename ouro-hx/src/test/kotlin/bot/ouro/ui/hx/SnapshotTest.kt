@@ -18,7 +18,7 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h2000dp-xxhdpi")
+@Config(qualifiers = "w411dp-h4000dp-xxhdpi")
 class SnapshotTest {
     @get:Rule
     val rule = createComposeRule()
@@ -30,7 +30,7 @@ class SnapshotTest {
         for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
             setting = s
             rule.waitForIdle()
-            for (kind in listOf("button", "badge", "card", "item")) {
+            for (kind in listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list")) {
                 rule.onNodeWithTag("gallery-$kind").captureRoboImage("src/test/snapshots/$kind-${s.id}.png")
             }
         }
