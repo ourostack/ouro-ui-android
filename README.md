@@ -35,7 +35,7 @@ dependencyResolutionManagement {
     }
 }
 // build.gradle.kts
-dependencies { implementation("bot.ouro.ui:ouro-hx:0.2.1") }
+dependencies { implementation("bot.ouro.ui:ouro-hx:0.2.2") }
 ```
 
 ```kotlin
@@ -69,6 +69,7 @@ What the surface does:
 - It checks the tree with core's validator (`bot.ouro.ui.hx.composed`, core's `composed.mts` ported) and draws nothing it refuses, so a sender can't relabel a button or loosen its consent.
 - Read and write buttons press at once. A consequential one opens a confirm sheet that shows each prepared value under its label, with the id small beside a name. It presses only on confirm. A tree whose sheet would show the person anything other than what is sent is refused, as core 0.18.1's validator says ([ouro-ui-core#88](https://github.com/ourostack/ouro-ui-core/issues/88)), and the surface builds the rows from your catalog and the input anyway. Your `label` resolver names only id fields (those with `shownAs`); every other row shows exactly the value sent.
 - A person-only button calls `onHandoff` and never presses.
+- A field's `value` or a bound input whose pointer names `__proto__`, `constructor` or `prototype` is refused, and such a pointer writes nothing, as in core 0.18.2 ([ouro-ui-core#91](https://github.com/ourostack/ouro-ui-core/issues/91)). Names a sender chooses (component, action, input field) are the catalog's only when the catalog itself has them.
 - Fields (TextField, Checkbox, Select) write the person's answers into the data model, and a button bound to a field sends what they entered.
 - The surface doesn't let an agent press anything. Its buttons are the person's; every `PersonPress` is `by = "person"`. An agent calls the action through its own AppFunction.
 - Checkbox, TextField, Separator, DescriptionList, Badge, Card and Button are Ouro HX's components, checked against core's claims. Core has no spec yet for Heading, Text, Image, Stack, List, Alert or Select, so the surface draws those from the theme's tokens. Headings are marked as headings, images are described, lists say how many items they hold, and controls are 48 dp. Select draws one radio button per option.
@@ -76,6 +77,7 @@ What the surface does:
 Limits:
 
 - Android reads no A2UI messages: send Ouro's tree (`structuredContent.ouro`), not an A2UI stream (`structuredContent.a2ui`). `OuroComposed.read` refuses an A2UI result and says so.
+- Android refuses a tree nested more than 100 components deep, and JSON nested more than 512 levels, so a forged one can't exhaust the stack. Core sets no such limit; no screen comes near it.
 - The default image loader fetches only https URLs, and your app needs the INTERNET permission. Pass `image` to use your own loader.
 - Like everything here, it is checked on the CI emulator only, never on a device.
 

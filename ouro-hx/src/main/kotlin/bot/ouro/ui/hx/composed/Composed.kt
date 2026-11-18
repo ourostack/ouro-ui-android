@@ -313,10 +313,24 @@ object OuroComposed {
 
     private fun unescape(key: String) = key.replace("~1", "/").replace("~0", "~")
 
+    /**
+     * Pointer segments that would reach a JavaScript object's prototype instead of the data. Kotlin's maps have none,
+     * but every kit refuses the same pointers core does (ouro-ui-core#91), so a tree reads the same everywhere.
+     */
+    private val UNSAFE_KEYS = setOf("__proto__", "constructor", "prototype")
+
+    private fun segments(pointer: String) = pointer.removePrefix("/").split("/").map(::unescape)
+
+    /** Whether no segment of a pointer, absolute or relative, names an object's prototype (core's `isSafePointer`). */
+    fun isSafePointer(pointer: String): Boolean = segments(pointer).none { it in UNSAFE_KEYS }
+
+    /** Whether a pointer stays in the data: absolute, and safe (core's `isDataPointer`). */
+    fun isDataPointer(pointer: String): Boolean = pointer.startsWith("/") && isSafePointer(pointer)
+
     /** An array index as core reads one: ASCII digits only (`/^\d+$/`), or null. */
     private fun index(key: String): Int? = if (key.isNotEmpty() && key.all { it in '0'..'9' }) key.toIntOrNull() else null
 
-    /** Reads a JSON pointer (RFC 6901). A missing value is null. */
+    /** Reads a JSON pointer (RFC 6901). A missing value is null, and only what the data itself holds is read. */
     fun getPointer(data: Any?, pointer: String): Any? {
         if (pointer == "" || pointer == "/") return data
         var cur: Any? = data
@@ -333,11 +347,16 @@ object OuroComposed {
         return cur
     }
 
-    /** Writes a JSON pointer, creating objects on the way; null deletes. It returns a copy and leaves [data] as it was. */
+    /**
+     * Writes a JSON pointer, creating objects on the way; null deletes. It returns a copy and leaves [data] as it was. A
+     * pointer with a segment `__proto__`, `constructor` or `prototype` writes nothing.
+     */
     @Suppress("UNCHECKED_CAST")
     fun setPointer(data: Any?, pointer: String, value: Any?): Any? {
         if (pointer == "" || pointer == "/") return value ?: LinkedHashMap<String, Any?>()
-        val keys = pointer.removePrefix("/").split("/").map(::unescape)
+        val keys = segments(pointer)
+        // A segment that names an object's prototype writes nothing, as in core.
+        if (keys.any { it in UNSAFE_KEYS }) return data
         val root: Any = if (data is Map<*, *> || data is List<*>) copy(data)!! else LinkedHashMap<String, Any?>()
         var cur: Any = root
         keys.forEachIndexed { i, k ->
@@ -463,7 +482,7 @@ object OuroComposed {
             "boolean" -> if (v !is Boolean) bad("true or false")
             "enum" -> if (v !is String || v !in p.type.values) bad("one of ${p.type.values.joinToString(", ")}")
             "level" -> if (!(v is Number && v.toDouble() in listOf(1.0, 2.0, 3.0))) bad("1, 2 or 3")
-            "path" -> if (v !is String || !v.startsWith("/")) bad("a JSON pointer into the data model, such as /servings")
+            "path" -> if (v !is String || !isDataPointer(v)) bad("a JSON pointer into the data model, such as /servings")
             "terms" -> if (v !is List<*> || !v.all { it is Map<*, *> && it.size == 2 && it["term"] is String && it["detail"] is String }) bad("a list of { term, detail } text")
         }
     }
@@ -564,7 +583,7 @@ object OuroComposed {
         for ((k, v) in input) {
             // A field the catalog doesn't carry would be sent without a row on the confirm sheet.
             if (!a.input.containsKey(k)) problems += TreeProblem("$at/props/input/$k", "$id has no input $k; its fields are ${a.input.keys.joinToString(", ").ifEmpty { "none" }}.")
-            if (v is Map<*, *> && v.containsKey("@path") && !(isBinding(v) && (v["@path"] as String).startsWith("/"))) {
+            if (v is Map<*, *> && v.containsKey("@path") && !(isBinding(v) && isDataPointer(v["@path"] as String))) {
                 problems += TreeProblem("$at/props/input/$k", "$k is a value, or {\"@path\": \"/...\"} bound to the data model.")
             }
         }
