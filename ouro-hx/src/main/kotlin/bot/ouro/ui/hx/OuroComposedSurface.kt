@@ -152,7 +152,12 @@ fun OuroComposedSurface(
  *
  * An update ([update], or a tool result's `structuredContent.ouro.update`) applies with core's `applyTreeUpdate`: all
  * of it or none. While one can't apply, the surface shows the short alert, and the last tree that applied, with what the
- * person entered, stays for the next update.
+ * person entered, stays for the next update. A tool result that carries a tree, even one refused, takes the card's
+ * place, so an update never changes a card the agent has since replaced.
+ *
+ * [rememberOuroComposedState] lasts as long as the composition. To keep the card and the person's answers when the
+ * Activity is recreated (a rotation, a theme change), hold an `OuroComposedState` in your ViewModel instead, or
+ * replay the last whole tree, then each update after it.
  */
 @Stable
 class OuroComposedState(val catalog: ComposedCatalog) {
@@ -213,10 +218,20 @@ class OuroComposedState(val catalog: ComposedCatalog) {
         is OuroComposed.Read.Ready -> show(read.tree, read.data)
         is OuroComposed.Read.Update -> update(read.update)
         is OuroComposed.Read.Refused -> {
-            if (read.problems.any { it.path.startsWith("/structuredContent/ouro/tree") }) tree = null
+            // A refused result that carried a tree still takes the card's place: no later update may change the old one.
+            if (carriesTree(result)) {
+                tree = null
+                answers = ComposedAnswers.of(emptyMap<String, Any?>())
+            }
             problems = read.problems
             problems
         }
+    }
+
+    private fun carriesTree(result: Any?): Boolean {
+        val r = result as? Map<*, *> ?: return false
+        val structured = r["structuredContent"] as? Map<*, *> ?: r
+        return ((structured["ouro"] as? Map<*, *>) ?: structured).containsKey("tree")
     }
 }
 

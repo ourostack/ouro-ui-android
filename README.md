@@ -52,7 +52,7 @@ Android draws Ouro's composed tree: the UI an agent composes for a person, check
 
 ```kotlin
 val catalog = ComposedCatalog.parse(assets.open("shopping.catalog.json").reader().readText())
-val card = rememberOuroComposedState(catalog)
+val card = rememberOuroComposedState(catalog)   // or an OuroComposedState in your ViewModel, to outlive a rotation
 LaunchedEffect(toolResultJson) { card.receive(toolResultJson) }   // a tree, or an update to the one shown
 OuroComposedSurface(
     card,
@@ -61,7 +61,7 @@ OuroComposedSurface(
 )
 ```
 
-An agent can change the card it sent without resending it: a tool result's `structuredContent.ouro.update` (core's `mcpAppTreeUpdateResult`, core 0.19.0 on) replaces nodes by id and sets data by JSON Pointer. `card.receive(result)` applies it, or `card.update(update)` applies one you got another way, with core's `applyTreeUpdate`: all of it or nothing. An id the tree lacks or a template's instances share, an unsafe path, or a tree that would fail the checks (a relabeled button, loosened consent) is refused. What the person entered stays across an update, except where the agent changed the value or the list item it sits in, as on web. If you hold the tree yourself, pass each new `tree` and `data` to the other overload, `OuroComposedSurface(tree, catalog, ...)`, which keeps the person's answers the same way.
+An agent can change the card it sent without resending it: a tool result's `structuredContent.ouro.update` (core's `mcpAppTreeUpdateResult`, core 0.19.0 on) replaces nodes by id and sets data by JSON Pointer. `card.receive(result)` applies it, or `card.update(update)` applies one you got another way, with core's `applyTreeUpdate`: all of it or nothing. An id the tree lacks or a template's instances share, an unsafe path, or a tree that would fail the checks (a relabeled button, loosened consent) is refused. What the person entered stays across an update, except where the agent changed the value or the list item it sits in, as on web. A result that carries a tree, even a refused one, takes the card's place, so an update never changes a card the agent has since replaced. `rememberOuroComposedState` lasts as long as the composition: keep the state in a ViewModel, or replay the last whole tree and then each update, so a recreated Activity doesn't get an update for a card it no longer shows. If you hold the tree yourself, pass each new `tree` and `data` to the other overload, `OuroComposedSurface(tree, catalog, ...)`, which keeps the person's answers the same way.
 
 Write the catalog from your declarations with core's generator: take `ouro-a2ui-catalog.mts`, `ouro-a2ui.mts`, `ouro-composed.mts`, `ouro-mcp-app.mts` and `ouro-actions.mts` from a core release into one folder, then run `node ouro-a2ui-catalog.mts catalog <actions.mts> <catalog.json>`. `samples/shop` does exactly this, and CI checks that the catalog still matches.
 

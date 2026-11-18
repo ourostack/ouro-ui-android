@@ -34,7 +34,8 @@ class ComposedUpdateTest {
         for ((name, c) in updates) {
             val cat = catalogs[c["catalog"]] ?: error("$name names an unknown catalog")
             val before = json(c)
-            val result = OuroComposed.applyTreeUpdate(cat, c["tree"], c["data"], c["update"])
+            @Suppress("UNCHECKED_CAST")
+            val result = OuroComposed.applyTreeUpdate(cat, c["tree"], c["data"] as Map<String, Any?>?, c["update"])
             val expect = c["expect"] as Map<*, *>
             when (result) {
                 is OuroComposed.Applied.Problems -> {
@@ -128,6 +129,21 @@ class ComposedUpdateTest {
         assertEquals(listOf("/structuredContent/ouro/update/data/0/path"), (OuroComposed.read(app, unsafe) as OuroComposed.Read.Refused).problems.map { it.path })
         val other = mapOf("structuredContent" to mapOf("ouro" to mapOf("version" to "1", "catalogId" to hx.catalogId, "update" to update)))
         assertTrue(OuroComposed.read(app, other) is OuroComposed.Read.Refused)
+    }
+
+    @Test
+    fun a_refused_tree_result_takes_the_card_s_place_so_a_later_update_never_changes_the_old_card() {
+        val state = bot.ouro.ui.hx.OuroComposedState(app)
+        fun result(ouro: Map<String, Any?>) = mapOf("structuredContent" to mapOf("ouro" to mapOf("version" to "1", "catalogId" to app.catalogId) + ouro))
+        assertEquals(emptyList<TreeProblem>(), state.receive(result(mapOf("tree" to plan))))
+        val wrong = mapOf("structuredContent" to mapOf("ouro" to mapOf("version" to "1", "catalogId" to hx.catalogId, "tree" to plan)))
+        assertEquals(listOf("/structuredContent/ouro/catalogId"), state.receive(wrong).map { it.path })
+        assertEquals(null, state.tree)
+        val update = mapOf("nodes" to listOf(heading("title", "Lemon orzo for six")))
+        assertEquals("an update aimed at the old card's ids is refused", listOf("/update"), state.receive(result(mapOf("update" to update))).map { it.path })
+        assertEquals(emptyList<TreeProblem>(), state.receive(result(mapOf("tree" to plan))))
+        assertEquals(emptyList<TreeProblem>(), state.update(update))
+        assertEquals("Lemon orzo for six", state.tree!!.children.first { it.id == "title" }.props["text"])
     }
 
     @Test

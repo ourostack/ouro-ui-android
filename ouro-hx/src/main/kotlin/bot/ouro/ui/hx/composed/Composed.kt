@@ -787,7 +787,7 @@ object OuroComposed {
      * only at an index from 0 to its length). The result passes [validateTree], so an update can't relabel a button or
      * loosen its consent any more than a whole tree can. It changes neither input and shares no object with them.
      */
-    fun applyTreeUpdate(cat: ComposedCatalog, tree: Any?, data: Any?, update: Any?): Applied {
+    fun applyTreeUpdate(cat: ComposedCatalog, tree: Any?, data: Map<String, Any?>?, update: Any?): Applied {
         val shape = treeUpdateProblems(cat, update)
         if (shape.isNotEmpty()) return Applied.Problems(shape)
         val given = validateTree(cat, if (tree is ComposedNode) tree.toJson() else tree)
