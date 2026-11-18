@@ -35,7 +35,7 @@ dependencyResolutionManagement {
     }
 }
 // build.gradle.kts
-dependencies { implementation("bot.ouro.ui:ouro-hx:0.1.0") }
+dependencies { implementation("bot.ouro.ui:ouro-hx:0.2.0") }
 ```
 
 ```kotlin
