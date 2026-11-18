@@ -203,6 +203,8 @@ class ComposedTest {
         val extra = OuroComposed.validateTree(app, card(forge(share) { this["input"] = withKey(this["input"], "everyone", true) }))
         assertEquals("share_recipe has no input everyone; its fields are recipe, recipeTitle, with.", first(extra).message)
         assertEquals("/children/0/props/input/everyone", extra.first().path)
+        // Core 0.18.1 checks with JavaScript's `in`, which lets prototype names through (ouro-ui-core#91); the catalog's own keys decide here.
+        for (k in listOf("constructor", "toString", "__proto__")) assertTrue(k, OuroComposed.validateTree(app, card(forge(share) { this["input"] = withKey(this["input"], k, "x") })).any { it.path == "/children/0/props/input/$k" })
         val plan = ComposedNode.fromJson(surfaces(case("inputs.json"))["plan"])
         val bound = find(plan, "share")!!
         @Suppress("UNCHECKED_CAST")
