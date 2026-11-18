@@ -407,15 +407,22 @@ object OuroComposed {
      * resolver, else the sibling `shownAs` names, else the value itself), with the id as `raw` when the name replaced
      * it; a name field that stands in for an id has no row of its own.
      */
-    private fun confirmFields(action: String, a: ComposedAction, input: Map<String, Any?>, label: ((LabelContext) -> String?)?): List<Map<String, Any?>> {
+    /** The input fields a confirm sheet has a row for, in order: each prepared one, less a name that stands in for an id. */
+    private fun confirmKeys(a: ComposedAction, input: Map<*, *>): List<String> {
         val names = a.input.filter { (k, f) -> input.containsKey(k) && f.shownAs != null && a.input.containsKey(f.shownAs) }.map { it.value.shownAs!! }.toSet()
-        return a.input.filter { (k) -> input.containsKey(k) && k !in names }.map { (k, f) ->
+        return a.input.keys.filter { input.containsKey(it) && it !in names }
+    }
+
+    private fun confirmFields(action: String, a: ComposedAction, input: Map<String, Any?>, label: ((LabelContext) -> String?)?): List<Map<String, Any?>> {
+        return confirmKeys(a, input).map { k ->
+            val f = a.input.getValue(k)
             val bound = input[k]
             if (isBinding(bound)) return@map linkedMapOf<String, Any?>("label" to f.label, "value" to "", "bind" to (bound as Map<*, *>)["@path"])
             val raw = asText(bound)
             val sibling = f.shownAs?.let { input[it] }
             val prepared = (sibling as? String)?.trim()?.takeIf { it.isNotEmpty() }
-            val value = label?.invoke(LabelContext(action, k, raw, input)) ?: prepared ?: raw
+            // Only an id field (one with shownAs) shows a name; every other row shows exactly what will be sent.
+            val value = (if (f.shownAs != null) label?.invoke(LabelContext(action, k, raw, input)) ?: prepared else null) ?: raw
             if (value == raw) linkedMapOf<String, Any?>("label" to f.label, "value" to value) else linkedMapOf<String, Any?>("label" to f.label, "value" to value, "raw" to raw)
         }
     }
@@ -509,6 +516,35 @@ object OuroComposed {
     /** A node's ComposedNode, checked: [validateTree] on its JSON. */
     fun validateTree(cat: ComposedCatalog, node: ComposedNode): List<TreeProblem> = validateTree(cat, node.toJson())
 
+    /**
+     * A confirm sheet's rows against the rows the catalog gives for the prepared input (core 0.18.1): the same fields, in
+     * order, with the catalog's labels, and each row showing what will be sent (its `raw`, or its `value` when it has
+     * none) or, for a bound input, the same binding. Only the words shown for an id may differ, since the app's own
+     * resolver names it.
+     */
+    private fun confirmRowProblems(problems: MutableList<TreeProblem>, id: String, a: ComposedAction, input: Map<String, Any?>, rows: List<*>, at: String) {
+        val expected = confirmFields(id, a, input, null)
+        val keys = confirmKeys(a, input)
+        val bad = { problems += TreeProblem(at, "$id's confirm sheet shows a row for each prepared input, with its label and the value that will be sent; the catalog's rows are ${json(expected)}.") }
+        if (rows.size != expected.size) return bad()
+        rows.forEachIndexed { i, r ->
+            val want = expected[i]
+            val row = r as? Map<*, *>
+            if (row == null || row["label"] != want["label"]) return@forEachIndexed bad()
+            if (want.containsKey("bind")) {
+                if (row["bind"] != want["bind"] || row.containsKey("raw")) bad()
+            } else if (row.containsKey("bind") || row["value"] !is String) {
+                bad()
+            } else if (a.input.getValue(keys[i]).shownAs != null) {
+                // An id field may show a name, with the id beside it.
+                if ((row["raw"] ?: row["value"]) != (want["raw"] ?: want["value"])) bad()
+            } else if (row["value"] != want["value"] || row.containsKey("raw")) {
+                // Any other row shows exactly what will be sent.
+                bad()
+            }
+        }
+    }
+
     private fun button(cat: ComposedCatalog, problems: MutableList<TreeProblem>, props: Map<*, *>, at: String) {
         val id = props["action"]
         val a = (id as? String)?.let { cat.actions[it] }
@@ -526,6 +562,8 @@ object OuroComposed {
             return
         }
         for ((k, v) in input) {
+            // A field the catalog doesn't carry would be sent without a row on the confirm sheet.
+            if (!a.input.containsKey(k)) problems += TreeProblem("$at/props/input/$k", "$id has no input $k; its fields are ${a.input.keys.joinToString(", ").ifEmpty { "none" }}.")
             if (v is Map<*, *> && v.containsKey("@path") && !(isBinding(v) && (v["@path"] as String).startsWith("/"))) {
                 problems += TreeProblem("$at/props/input/$k", "$k is a value, or {\"@path\": \"/...\"} bound to the data model.")
             }
@@ -541,6 +579,9 @@ object OuroComposed {
             val c = props["confirm"] as? Map<*, *>
             if (c == null || c["title"] != a.label || c["description"] != a.description || c["fields"] !is List<*>) {
                 problems += TreeProblem("$at/props/confirm", "$id confirms, with the catalog's title and description and a row per prepared input.")
+            } else {
+                @Suppress("UNCHECKED_CAST")
+                confirmRowProblems(problems, id, a, input as Map<String, Any?>, c["fields"] as List<*>, "$at/props/confirm/fields")
             }
         } else if (props.containsKey("confirm")) {
             problems += TreeProblem("$at/props/confirm", "$id doesn't confirm; only a consequential action does.")
@@ -588,9 +629,10 @@ object OuroComposed {
 
     /**
      * The confirm sheet a consequential button shows when the person presses it, or null for a button that doesn't
-     * confirm. Its rows are built from the catalog and the button's input, never read from the tree: core's validator
-     * checks a sheet's title and description but not its rows, so a sender could otherwise show the person one thing
-     * and send another. Rows bound to a field read [data]; [label] is the app's own word for an id.
+     * confirm. Its rows are built from the catalog and the button's input, never read from the tree. [validateTree]
+     * already refuses a tree whose rows differ from what it sends (core 0.18.1); building them here as well means a tree
+     * that was never validated still shows the person what is sent. Rows bound to a field read [data]; [label] is the
+     * app's own word for an id field.
      */
     fun confirmSheet(cat: ComposedCatalog, button: ComposedNode, data: Any?, label: ((LabelContext) -> String?)? = null): ConfirmSheet? {
         val action = button.props["action"] as? String ?: return null

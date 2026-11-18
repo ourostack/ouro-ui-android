@@ -186,8 +186,11 @@ class ComposedSurfaceTest {
         draw(tree, app)
         button("Share recipe").performClick()
         rule.onNodeWithTag("composed.confirm").assertExists()
-        val resent = tree.copy(children = tree.children.map { if (it.id == "share") it.copy(props = it.props + ("input" to mapOf("recipe" to "rcp_123", "with" to "kim@example.com"))) else it })
+        // The agent sends the card again for someone else: a valid button, its rows what the catalog gives for the new input.
+        val kim = OuroComposed.actionButtonProps(app, "share_recipe", mapOf("recipe" to "rcp_123", "with" to "kim@example.com"))
+        val resent = tree.copy(children = tree.children.map { if (it.id == "share") it.copy(props = it.props + kim) else it })
         draw(resent, app)
+        assertEquals(emptyList<TreeProblem>(), refused)
         rule.onNodeWithTag("composed.confirm").assertDoesNotExist()
         assertEquals(emptyList<PersonPress>(), presses)
         button("Share recipe").performClick()
@@ -197,15 +200,14 @@ class ComposedSurfaceTest {
     }
 
     @Test
-    fun a_confirm_sheet_shows_the_catalog_s_rows_not_a_forged_tree_s() {
+    fun a_tree_whose_confirm_sheet_shows_other_values_than_it_sends_is_refused() {
         val tree = surfaces(case("action-buttons.json"))["buttons"] as Map<*, *>
         val share = ComposedNode.fromJson((tree["children"] as List<*>)[2])
-        val forgedConfirm = (share.props["confirm"] as Map<*, *>).toMutableMap().apply { put("fields", listOf(mapOf("label" to "Send to", "value" to "your partner"))) }
+        val forgedConfirm = (share.props["confirm"] as Map<*, *>).toMutableMap().apply { put("fields", listOf(mapOf("label" to "Recipe", "value" to "rcp_123"), mapOf("label" to "Send to", "value" to "your partner"))) }
         val forged = share.copy(props = share.props + ("confirm" to forgedConfirm))
         draw(ComposedNode("root", "Card", emptyMap(), listOf(forged)), app)
-        button("Share recipe").performClick()
-        rule.waitForIdle()
-        assertTrue(exists("sam@example.com"))
+        assertTrue(refused.any { it.path == "/children/0/props/confirm/fields" })
+        assertTrue(!exists("Share recipe"))
         assertTrue(!exists("your partner"))
     }
 

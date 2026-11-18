@@ -105,8 +105,8 @@ typealias OuroComposedImage = @Composable (url: String, description: String, mod
  * }
  * ```
  *
- * [label] is the app's own word for an id on a confirm sheet, such as a recipe's title for `rcp_lemon_orzo`; it wins
- * over the agent's. [image] draws an Image; the default fetches https URLs only, which needs the INTERNET permission.
+ * [label] is the app's own word for an id field on a confirm sheet (one with `shownAs` in the catalog), such as a
+ * recipe's title for `rcp_lemon_orzo`; it wins over the agent's. Every other row shows exactly the value sent. [image] draws an Image; the default fetches https URLs only, which needs the INTERNET permission.
  */
 @Composable
 fun OuroComposedSurface(

@@ -184,8 +184,52 @@ class ComposedTest {
     }
 
     @Test
+    fun a_confirm_sheet_can_t_show_the_person_one_value_and_send_another() {
+        @Suppress("UNCHECKED_CAST")
+        fun rows(edit: MutableList<MutableMap<String, Any?>>.() -> Unit) = card(forge(share) {
+            val fields = ((this["confirm"] as Map<*, *>)["fields"] as List<*>).map { LinkedHashMap(it as Map<String, Any?>) }.toMutableList<MutableMap<String, Any?>>()
+            fields.edit()
+            this["confirm"] = withKey(this["confirm"], "fields", fields)
+        })
+        val sheet = "share_recipe's confirm sheet shows a row for each prepared input"
+        val forgedValue = OuroComposed.validateTree(app, rows { this[lastIndex]["value"] = "friend@example.com" })
+        assertTrue(first(forgedValue).message.startsWith(sheet))
+        assertEquals("/children/0/props/confirm/fields", forgedValue.first().path)
+        assertTrue(first(OuroComposed.validateTree(app, rows { removeAt(lastIndex) })).message.startsWith(sheet))
+        assertTrue(first(OuroComposed.validateTree(app, rows { this[0]["label"] = "Dinner" })).message.startsWith(sheet))
+        assertEquals("the app's own words for an id may differ, beside the id itself", emptyList<TreeProblem>(), OuroComposed.validateTree(app, rows { this[0]["raw"] = this[0]["value"]; this[0]["value"] = "My lemon orzo" }))
+        assertTrue("a field that is no id can't show other words with the real value beside them", first(OuroComposed.validateTree(app, rows { this[lastIndex]["raw"] = this[lastIndex]["value"]; this[lastIndex]["value"] = "friend@example.com" })).message.startsWith(sheet))
+        assertTrue("an id's name can't stand beside a different id", first(OuroComposed.validateTree(app, rows { this[0]["raw"] = "rcp_evil"; this[0]["value"] = "Lemon orzo" })).message.startsWith(sheet))
+        val extra = OuroComposed.validateTree(app, card(forge(share) { this["input"] = withKey(this["input"], "everyone", true) }))
+        assertEquals("share_recipe has no input everyone; its fields are recipe, recipeTitle, with.", first(extra).message)
+        assertEquals("/children/0/props/input/everyone", extra.first().path)
+        // Core 0.18.1 checks with JavaScript's `in`, which lets prototype names through (ouro-ui-core#91); the catalog's own keys decide here.
+        for (k in listOf("constructor", "toString", "__proto__")) assertTrue(k, OuroComposed.validateTree(app, card(forge(share) { this["input"] = withKey(this["input"], k, "x") })).any { it.path == "/children/0/props/input/$k" })
+        val plan = ComposedNode.fromJson(surfaces(case("inputs.json"))["plan"])
+        val bound = find(plan, "share")!!
+        @Suppress("UNCHECKED_CAST")
+        val rebound = bound.toJson().toMutableMap().also { n ->
+            n["props"] = LinkedHashMap(bound.props).apply {
+                val fields = ((this["confirm"] as Map<*, *>)["fields"] as List<*>).map { LinkedHashMap(it as Map<String, Any?>) }
+                fields[fields.lastIndex]["bind"] = "/somewhere/else"
+                this["confirm"] = withKey(this["confirm"], "fields", fields)
+            }
+        }
+        assertTrue("a bound row reads the same binding the input does", first(OuroComposed.validateTree(app, card(rebound))).message.startsWith(sheet))
+    }
+
+    @Test
+    fun the_app_s_resolver_names_only_id_fields_every_other_row_shows_what_will_be_sent() {
+        val input = mapOf("recipe" to "rcp_1", "with" to "sam@example.com")
+        val asked = mutableListOf<String>()
+        val fields = (OuroComposed.actionButtonProps(app, "share_recipe", input, label = { asked += it.field; "Somebody else" })["confirm"] as Map<*, *>)["fields"]
+        assertEquals("""[{"label":"Recipe","value":"Somebody else","raw":"rcp_1"},{"label":"Send to","value":"sam@example.com"}]""", ComposedJson.stringify(fields))
+        assertEquals(listOf("recipe"), asked)
+    }
+
+    @Test
     fun a_confirm_sheet_s_rows_come_from_the_catalog_and_the_input_never_from_the_tree() {
-        // Core's validator checks a sheet's title and description, not its rows: a sender could show one thing and send another.
+        // The validator refuses forged rows (core 0.18.1); the sheet is still built from the catalog and the input, so it shows what is sent.
         val forged = ComposedNode.fromJson(forge(share) {
             this["confirm"] = withKey(this["confirm"], "fields", listOf(mapOf("label" to "Send to", "value" to "your partner")))
         })

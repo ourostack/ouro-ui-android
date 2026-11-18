@@ -1,10 +1,10 @@
 {
-  "coreTag": "v0.18.0",
-  "coreCommit": "2e8069b82fbcf88ae7fa01f7c409af5c4ae2a5a5",
+  "coreTag": "v0.18.1",
+  "coreCommit": "794eaed7f9b633a1a6678eab8d5e1eee230b886a",
   "files": {
     "vendor/core/ouro-actions.mts": {
       "from": "dist/actions/ouro-actions.mts",
-      "sha256": "ad2250d789e656a906d89317a7ae81725225642d0407dfc06bf051d810ac4199"
+      "sha256": "c59ae35c54d3110fc3b2e68eceef897391fbf9887ee65fb2ec54bec98bf1752f"
     },
     "vendor/core/ouro-actions-android.mts": {
       "from": "dist/actions/ouro-actions-android.mts",
@@ -12,7 +12,7 @@
     },
     "vendor/core/ouro-composed.mts": {
       "from": "dist/composed/ouro-composed.mts",
-      "sha256": "179d2797fd0b6e974e0fca661696fe08ce9b1a549d78a013bd9b3bfcba38ff7d"
+      "sha256": "b36e045722fe60b653e2bfcd9b1eef078c4bd5e1283891d35806c19625b9ee7f"
     },
     "vendor/core/ouro-mcp-app.mts": {
       "from": "dist/composed/ouro-mcp-app.mts",
@@ -68,11 +68,11 @@
     },
     "vendor/core/composed/catalog.json": {
       "from": "dist/hx/a2ui/catalog.json",
-      "sha256": "3bd062f13485ae42bc0e871735d448f1c34242e65b198d81853c16f8b50ced9f"
+      "sha256": "030135da2854b5f9266896ff7483aa61ff67ce53cb44ad9f8ed8b12152909ee5"
     },
     "vendor/core/composed/recipe.catalog.json": {
       "from": "standard/hx/a2ui/conformance/recipe.catalog.json",
-      "sha256": "67e44a7f4c6dad70db1174b685b7a6c9d04f3be43d8dcc43d80ee4a1e2622b93"
+      "sha256": "fef333526255a51db942c09be42d3a37f2872585ce4205872214c8ca60755db9"
     },
     "vendor/core/composed/cases/action-buttons.json": {
       "from": "standard/hx/a2ui/conformance/cases/action-buttons.json",
@@ -128,7 +128,7 @@
     },
     "ouro-hx/src/main/kotlin/bot/ouro/ui/hx/tokens/OuroTokens.kt": {
       "from": "dist/android/OuroTokens.kt",
-      "sha256": "ea049ed77c95e3d186394ddb71a82213d44f25ee16824b9da35e034da390af5e"
+      "sha256": "e984958e581f594bcdcb9b58d3c80adb212de16c4eadce8d5ba457eb254d4054"
     }
   }
 }
