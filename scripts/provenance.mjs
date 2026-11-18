@@ -27,6 +27,10 @@ const CORE = "ourostack/ouro-ui-core";
 const MAP = {
   "vendor/core/ouro-actions.mts": "dist/actions/ouro-actions.mts",
   "vendor/core/ouro-actions-android.mts": "dist/actions/ouro-actions-android.mts",
+  "vendor/core/ouro-composed.mts": "dist/composed/ouro-composed.mts",
+  "vendor/core/ouro-mcp-app.mts": "dist/composed/ouro-mcp-app.mts",
+  "vendor/core/ouro-a2ui.mts": "dist/a2ui/ouro-a2ui.mts",
+  "vendor/core/ouro-a2ui-catalog.mts": "dist/a2ui/ouro-a2ui-catalog.mts",
   "vendor/core/components.claims.json": "dist/hx/components.claims.json",
   "vendor/core/components/component.schema.json": "dist/hx/components/component.schema.json",
   "vendor/core/components/button.spec.json": "dist/hx/components/button.spec.json",

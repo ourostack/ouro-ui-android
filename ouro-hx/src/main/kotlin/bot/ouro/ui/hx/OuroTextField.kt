@@ -77,7 +77,7 @@ fun OuroTextField(
 ) {
     val look = Ouro.look
     val c = look.colors
-    val behind = c.background
+    val behind = Ouro.surface
     val labelColor = OuroColor.readable(c.foreground, behind, look.textContrast)
     val textColor = labelColor
     val descriptionColor = OuroColor.readable(c.mutedForeground, behind, look.textContrast)

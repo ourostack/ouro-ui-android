@@ -37,6 +37,17 @@ class SnapshotTest {
     }
 
     @Test
+    fun a_composed_surface_in_light_dark_increased_contrast_and_large_text() {
+        var setting by mutableStateOf(LIGHT)
+        rule.setContent { ComposedGallery(setting) }
+        for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
+            setting = s
+            rule.waitForIdle()
+            rule.onNodeWithTag("composed-gallery").captureRoboImage("src/test/snapshots/composed-${s.id}.png")
+        }
+    }
+
+    @Test
     fun every_theme() {
         var setting by mutableStateOf(LIGHT)
         rule.setContent { Gallery(setting) }

@@ -36,7 +36,8 @@ fun OuroBadge(
 ) {
     require(variant != OuroVariant.Plain) { "OuroBadge: variant is Plain, which a Badge doesn't take. Fix: Solid, Soft or Outline." }
     val look = Ouro.look
-    val paint = remember(look, tone, variant) { OuroPaint.resolve(look.colors, tone, variant, look.textContrast) }
+    val under = Ouro.surface
+    val paint = remember(look, tone, variant, under) { OuroPaint.resolve(look.colors, tone, variant, look.textContrast, under) }
     val shape = RoundedCornerShape(12.dp)
     Row(
         modifier
@@ -46,7 +47,7 @@ fun OuroBadge(
                     "tone" to tone.name.lowercase(),
                     "variant" to variant.name.lowercase(),
                     "label" to OuroColor.hex(paint.label),
-                    "behind" to OuroColor.hex(paint.behind(look.colors.background)),
+                    "behind" to OuroColor.hex(paint.behind(under)),
                 )
             }
             .heightIn(min = 24.dp)

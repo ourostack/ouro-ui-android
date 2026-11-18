@@ -62,7 +62,7 @@ fun OuroCheckbox(
 ) {
     val look = Ouro.look
     val c = look.colors
-    val behind = c.background
+    val behind = Ouro.surface
     val labelColor = OuroColor.readable(c.foreground, behind, look.textContrast)
     val descriptionColor = OuroColor.readable(c.mutedForeground, behind, look.textContrast)
     val errorColor = OuroPaint.readable(c.destructive, behind, c.foreground, look.textContrast)

@@ -1,5 +1,5 @@
-// Three screens, picked by the launch intent so CI can photograph each: the list (people's door), the components in
-// every tone and variant, and the agent console (agents' door).
+// Four screens, picked by the launch intent so CI can photograph each: the list (people's door), the components in
+// every tone and variant, the agent console (agents' door), and a card an agent composed for the person (composed).
 //   adb shell am start -n bot.ouro.shop/.MainActivity --es screen agent --ez dark true --ez contrast true --es theme pearl
 // A debug build started with --ez photo true also draws its window into files/photo.png: on CI's emulator neither the
 // host nor screencap can take a picture.
@@ -62,11 +62,12 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val screen = intent.getStringExtra("screen") ?: "shop"
+        val first = intent.getStringExtra("screen") ?: "shop"
         val theme = OuroThemeName.entries.firstOrNull { it.id == intent.getStringExtra("theme") } ?: OuroThemeName.Pearl
         val dark = if (intent.hasExtra("dark")) intent.getBooleanExtra("dark", false) else null
         val contrast = if (intent.hasExtra("contrast")) intent.getBooleanExtra("contrast", false) else null
         setContent {
+            var screen by remember { mutableStateOf(first) }
             OuroTheme(theme, dark = dark ?: androidx.compose.foundation.isSystemInDarkTheme(), increasedContrast = contrast ?: systemIncreasedContrast()) {
                 Column(
                     Modifier.fillMaxSize().background(Ouro.look.colors.background).safeDrawingPadding().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -75,6 +76,8 @@ class MainActivity : ComponentActivity() {
                     when (screen) {
                         "gallery" -> Gallery()
                         "agent" -> AgentScreen()
+                        // A person-only button hands the person to the app's own screen for it: the list, with Place order.
+                        "composed" -> ComposedScreen(onHandoff = { screen = "shop" })
                         else -> ShopScreen()
                     }
                 }

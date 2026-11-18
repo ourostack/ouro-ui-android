@@ -90,10 +90,12 @@ class XRayTest {
     fun a_consequential_action_is_refused_until_the_person_confirms() {
         val fns = found()
         val share = fns.first { it.id.endsWith("#shareShoppingList") }
+        // Other tests in this run share the list as the person; the agent's call must add nobody.
+        val before = Shop.sharedWith.toList()
         val data = AppFunctionData.Builder(share.parameters, share.components).setString("with", "sam@example.com").build()
         val res = runBlocking { AppFunctionManager.getInstance(context)!!.executeAppFunction(ExecuteAppFunctionRequest(context.packageName, share.id, data)) }
         assertTrue("share: $res", res is ExecuteAppFunctionResponse.Error && res.error is AppFunctionDeniedException)
-        assertTrue(Shop.sharedWith.isEmpty())
+        assertEquals(before, Shop.sharedWith.toList())
     }
 
     @Test

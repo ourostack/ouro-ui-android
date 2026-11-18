@@ -1,0 +1,230 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Pasta night: Spaghetti, Parmesan and Basil are missing from your list."
+    }
+  ],
+  "structuredContent": {
+    "ouro": {
+      "version": "1",
+      "catalogId": "https://ui.ouroboros.bot/a2ui/v1/apps/shopping/catalog.json",
+      "tree": {
+        "id": "root",
+        "component": "Card",
+        "props": {},
+        "children": [
+          {
+            "id": "heading_0",
+            "component": "Heading",
+            "props": {
+              "text": "Pasta night",
+              "level": 1
+            },
+            "children": []
+          },
+          {
+            "id": "stack_3",
+            "component": "Stack",
+            "props": {
+              "direction": "horizontal",
+              "gap": "small"
+            },
+            "children": [
+              {
+                "id": "badge_1",
+                "component": "Badge",
+                "props": {
+                  "text": "Vegetarian",
+                  "tone": "success"
+                },
+                "children": []
+              },
+              {
+                "id": "badge_2",
+                "component": "Badge",
+                "props": {
+                  "text": "35 min",
+                  "tone": "neutral"
+                },
+                "children": []
+              }
+            ]
+          },
+          {
+            "id": "text_4",
+            "component": "Text",
+            "props": {
+              "text": "What Saturday's recipe needs that your list doesn't have yet.",
+              "tone": "muted"
+            },
+            "children": []
+          },
+          {
+            "id": "descriptionlist_5",
+            "component": "DescriptionList",
+            "props": {
+              "items": [
+                {
+                  "term": "Serves",
+                  "detail": "4"
+                },
+                {
+                  "term": "Missing",
+                  "detail": "3 things"
+                }
+              ]
+            },
+            "children": []
+          },
+          {
+            "id": "list_6",
+            "component": "List",
+            "props": {
+              "items": [
+                "Spaghetti",
+                "Parmesan",
+                "Basil"
+              ],
+              "ordered": false
+            },
+            "children": []
+          },
+          {
+            "id": "alert_7",
+            "component": "Alert",
+            "props": {
+              "title": "Basil sells out on Saturdays.",
+              "text": "Add it now so it's on Friday's order.",
+              "tone": "info"
+            },
+            "children": []
+          },
+          {
+            "id": "separator_8",
+            "component": "Separator",
+            "props": {},
+            "children": []
+          },
+          {
+            "id": "textfield_9",
+            "component": "TextField",
+            "props": {
+              "label": "Item",
+              "value": "/item/name",
+              "hint": "What to add, as you'd say it.",
+              "type": "text",
+              "multiline": false
+            },
+            "children": []
+          },
+          {
+            "id": "textfield_10",
+            "component": "TextField",
+            "props": {
+              "label": "Quantity",
+              "value": "/item/quantity",
+              "type": "number",
+              "multiline": false
+            },
+            "children": []
+          },
+          {
+            "id": "select_11",
+            "component": "Select",
+            "props": {
+              "label": "Share with",
+              "value": "/share/with",
+              "options": [
+                "sam@example.com",
+                "kim@example.com"
+              ]
+            },
+            "children": []
+          },
+          {
+            "id": "stack_15",
+            "component": "Stack",
+            "props": {
+              "direction": "horizontal",
+              "gap": "small"
+            },
+            "children": [
+              {
+                "id": "actionbutton_12",
+                "component": "ActionButton",
+                "props": {
+                  "emphasis": "primary",
+                  "action": "add_shopping_list_item",
+                  "label": "Add to list",
+                  "consent": "write",
+                  "press": "run",
+                  "input": {
+                    "name": {
+                      "@path": "/item/name"
+                    },
+                    "quantity": {
+                      "@path": "/item/quantity"
+                    }
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "actionbutton_13",
+                "component": "ActionButton",
+                "props": {
+                  "emphasis": "secondary",
+                  "action": "share_shopping_list",
+                  "label": "Share list",
+                  "consent": "consequential",
+                  "press": "confirm",
+                  "input": {
+                    "with": {
+                      "@path": "/share/with"
+                    }
+                  },
+                  "confirm": {
+                    "title": "Share list",
+                    "description": "Share your shopping list with someone in your household.",
+                    "fields": [
+                      {
+                        "label": "With",
+                        "value": "",
+                        "bind": "/share/with"
+                      }
+                    ]
+                  }
+                },
+                "children": []
+              },
+              {
+                "id": "actionbutton_14",
+                "component": "ActionButton",
+                "props": {
+                  "emphasis": "secondary",
+                  "action": "place_grocery_order",
+                  "label": "Place order",
+                  "consent": "person-only",
+                  "press": "handoff",
+                  "input": {},
+                  "handoff": "with Place order on the shopping list"
+                },
+                "children": []
+              }
+            ]
+          }
+        ]
+      },
+      "data": {
+        "item": {
+          "name": "Basil",
+          "quantity": 1
+        },
+        "share": {
+          "with": "sam@example.com"
+        }
+      }
+    }
+  }
+}
