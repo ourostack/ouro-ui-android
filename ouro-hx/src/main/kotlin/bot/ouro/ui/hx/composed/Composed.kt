@@ -295,6 +295,9 @@ object OuroComposed {
         ),
     )
 
+    /** How deep a tree may nest: far past any screen, short of the stack. */
+    const val MAX_DEPTH = 100
+
     private val BUTTON_PROPS = listOf("action", "label", "consent", "press", "input", "confirm", "handoff", "emphasis", "@label")
 
     /** HX's components, plus ActionButton when the catalog has actions (core's `componentsFor`). */
@@ -310,6 +313,9 @@ object OuroComposed {
 
     private fun unescape(key: String) = key.replace("~1", "/").replace("~0", "~")
 
+    /** An array index as core reads one: ASCII digits only (`/^\d+$/`), or null. */
+    private fun index(key: String): Int? = if (key.isNotEmpty() && key.all { it in '0'..'9' }) key.toIntOrNull() else null
+
     /** Reads a JSON pointer (RFC 6901). A missing value is null. */
     fun getPointer(data: Any?, pointer: String): Any? {
         if (pointer == "" || pointer == "/") return data
@@ -318,7 +324,7 @@ object OuroComposed {
             val key = unescape(raw)
             val here = cur
             cur = when (here) {
-                is List<*> -> if (key.isNotEmpty() && key.all { it.isDigit() }) key.toIntOrNull()?.let { here.getOrNull(it) } else null
+                is List<*> -> index(key)?.let { here.getOrNull(it) }
                 is Map<*, *> -> here[key]
                 else -> return null
             }
@@ -339,22 +345,24 @@ object OuroComposed {
             when (cur) {
                 is MutableList<*> -> {
                     val list = cur as MutableList<Any?>
-                    val index = if (k.isNotEmpty() && k.all { it.isDigit() }) k.toIntOrNull() else null
-                    if (index == null) {
-                        // JavaScript sets a named property on an array, which JSON never shows: write nowhere.
+                    val index = index(k)
+                    // JavaScript sets a named property on an array, which JSON never shows, and an index past the end
+                    // leaves holes. Write nowhere for either, so no pointer can make the app fill a huge list.
+                    if (index == null || index > list.size) {
                         cur = LinkedHashMap<String, Any?>()
                         return@forEachIndexed
                     }
                     if (last) {
                         if (value == null) {
                             if (index < list.size) list.removeAt(index)
+                        } else if (index == list.size) {
+                            list += value
                         } else {
-                            while (list.size <= index) list += null
                             list[index] = value
                         }
                         return@forEachIndexed
                     }
-                    while (list.size <= index) list += null
+                    if (index == list.size) list += null
                     val next = list[index]
                     if (next !is Map<*, *> && next !is List<*>) list[index] = LinkedHashMap<String, Any?>()
                     cur = list[index]!!
@@ -460,7 +468,12 @@ object OuroComposed {
      */
     fun validateTree(cat: ComposedCatalog, node: Any?, path: String = ""): List<TreeProblem> {
         val problems = mutableListOf<TreeProblem>()
-        fun visit(n: Any?, at: String) {
+        fun visit(n: Any?, at: String, depth: Int) {
+            // No screen nests this deep; a tree that does is refused before it can exhaust the stack.
+            if (depth > MAX_DEPTH) {
+                problems += TreeProblem(at, "The tree nests more than $MAX_DEPTH components deep.")
+                return
+            }
             val m = n as? Map<*, *>
             if (m == null || m["id"] !is String || m["component"] !is String || m["props"] !is Map<*, *> || m["children"] !is List<*>) {
                 problems += TreeProblem(at, "A node is { id, component, props, children }.")
@@ -487,9 +500,9 @@ object OuroComposed {
             }
             if (component == "ActionButton") button(cat, problems, props, at)
             if (!spec.props.containsKey("children") && children.isNotEmpty()) problems += TreeProblem("$at/children", "$component has no children.")
-            children.forEachIndexed { i, c -> visit(c, "$at/children/$i") }
+            children.forEachIndexed { i, c -> visit(c, "$at/children/$i", depth + 1) }
         }
-        visit(node, path)
+        visit(node, path, 1)
         return problems
     }
 
@@ -565,6 +578,33 @@ object OuroComposed {
             }
         }
         return button.copy(props = props)
+    }
+
+    /** A confirm sheet: the action's label and description, and a row per prepared input. */
+    data class ConfirmSheet(val title: String, val description: String, val rows: List<ConfirmRow>)
+
+    /** One row of a confirm sheet: the field's label and the value, with the id as [raw] when a name replaced it. */
+    data class ConfirmRow(val label: String, val value: String, val raw: String? = null)
+
+    /**
+     * The confirm sheet a consequential button shows when the person presses it, or null for a button that doesn't
+     * confirm. Its rows are built from the catalog and the button's input, never read from the tree: core's validator
+     * checks a sheet's title and description but not its rows, so a sender could otherwise show the person one thing
+     * and send another. Rows bound to a field read [data]; [label] is the app's own word for an id.
+     */
+    fun confirmSheet(cat: ComposedCatalog, button: ComposedNode, data: Any?, label: ((LabelContext) -> String?)? = null): ConfirmSheet? {
+        val action = button.props["action"] as? String ?: return null
+        val a = cat.actions[action] ?: return null
+        if (a.press != ComposedPress.Confirm) return null
+        @Suppress("UNCHECKED_CAST")
+        val input = (button.props["input"] as? Map<String, Any?>).orEmpty()
+        val rebuilt = resolveButton(button.copy(props = actionButtonProps(cat, action, input, label)), data)
+        val confirm = rebuilt.props["confirm"] as Map<*, *>
+        val rows = (confirm["fields"] as List<*>).map { row ->
+            val r = row as Map<*, *>
+            ConfirmRow(r["label"].toString(), asText(r["value"]), r["raw"] as? String)
+        }
+        return ConfirmSheet(a.label, a.description, rows)
     }
 
     /** What [personPress] refuses: a person-only button's press, or a consequential one's before the person confirms. */

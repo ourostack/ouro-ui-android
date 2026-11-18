@@ -184,6 +184,37 @@ class ComposedTest {
     }
 
     @Test
+    fun a_confirm_sheet_s_rows_come_from_the_catalog_and_the_input_never_from_the_tree() {
+        // Core's validator checks a sheet's title and description, not its rows: a sender could show one thing and send another.
+        val forged = ComposedNode.fromJson(forge(share) {
+            this["confirm"] = withKey(this["confirm"], "fields", listOf(mapOf("label" to "Send to", "value" to "your partner")))
+        })
+        val sheet = OuroComposed.confirmSheet(app, forged, emptyMap<String, Any?>())!!
+        assertEquals(OuroComposed.ConfirmSheet("Share recipe", "Send this recipe to someone.", listOf(OuroComposed.ConfirmRow("Recipe", "rcp_123"), OuroComposed.ConfirmRow("Send to", "sam@example.com"))), sheet)
+        val plan = ComposedNode.fromJson(surfaces(case("inputs.json"))["plan"])
+        val bound = OuroComposed.confirmSheet(app, find(plan, "share")!!, mapOf("share" to mapOf("with" to "kim@example.com")), label = { if (it.field == "recipe") "Our orzo" else null })!!
+        assertEquals(listOf(OuroComposed.ConfirmRow("Recipe", "Our orzo", "rcp_lemon_orzo"), OuroComposed.ConfirmRow("Send to", "kim@example.com")), bound.rows)
+        assertEquals(null, OuroComposed.confirmSheet(app, shop, emptyMap<String, Any?>()))
+    }
+
+    @Test
+    fun a_pointer_past_the_end_of_a_list_or_in_other_digits_writes_nowhere() {
+        val data = mapOf("a" to listOf(1L))
+        assertEquals("""{"a":[1]}""", ComposedJson.stringify(OuroComposed.setPointer(data, "/a/2000000000", "x")))
+        assertEquals("""{"a":[1,"x"]}""", ComposedJson.stringify(OuroComposed.setPointer(data, "/a/1", "x")))
+        assertEquals("""{"a":[1]}""", ComposedJson.stringify(OuroComposed.setPointer(data, "/a/\u0661", "x")))
+        assertEquals(null, OuroComposed.getPointer(mapOf("a" to listOf(1L, 2L)), "/a/\u0661"))
+    }
+
+    @Test
+    fun json_nested_too_deep_and_trees_nested_too_deep_are_refused_not_a_crash() {
+        assertThrows(IllegalArgumentException::class.java) { ComposedJson.parse("[".repeat(10_000) + "]".repeat(10_000)) }
+        var deep: Map<String, Any?> = linkedMapOf("id" to "s", "component" to "Separator", "props" to emptyMap<String, Any?>(), "children" to emptyList<Any?>())
+        repeat(OuroComposed.MAX_DEPTH + 1) { deep = card(deep) }
+        assertTrue(OuroComposed.validateTree(hx, deep).any { it.message.startsWith("The tree nests more than") })
+    }
+
+    @Test
     fun pointers_read_and_write_as_rfc_6901_says_and_leave_the_data_as_it_was() {
         val data = ComposedJson.parse("""{"a/b":{"m~n":1},"list":[10,20,30],"x":{"y":null}}""")
         assertEquals(1L, OuroComposed.getPointer(data, "/a~1b/m~0n"))
@@ -226,6 +257,13 @@ class ComposedTest {
         assertEquals("share_recipe is an action, and agents run actions through their own tool (MCP share_recipe), not through the person's screen.", OuroComposed.agentPressProblem(app, "share_recipe").message)
         assertEquals("person-only", (OuroComposed.agentPressProblem(app, "order_ingredients").refusal!!["error"] as Map<*, *>)["code"])
         assertEquals("This catalog has no functions an agent may call, so pay is not one.", OuroComposed.agentPressProblem(app, "pay").message)
+    }
+
+    @Test
+    fun numbers_read_as_javascript_writes_them() {
+        val cases = listOf(4.0 to "4", 2.5 to "2.5", 12345678.5 to "12345678.5", 0.00015 to "0.00015", 1.5e-5 to "0.000015", 1e-7 to "1e-7", 1e20 to "100000000000000000000", 1e21 to "1e+21", 1.5e22 to "1.5e+22", -0.5 to "-0.5", 0.1 to "0.1")
+        for ((n, text) in cases) assertEquals(text, ComposedJson.number(n))
+        assertEquals("100000000000000000000", ComposedJson.stringify(ComposedJson.parse("100000000000000000000")))
     }
 
     @Test

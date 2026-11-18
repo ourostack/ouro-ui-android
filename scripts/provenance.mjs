@@ -8,7 +8,8 @@
 //                                                and the tag still points at the recorded commit (fetched from GitHub)
 //   node scripts/provenance.mjs update vX.Y.Z    take every file from that core release and record it
 //
-// update downloads the release's dist zip and lists source folders with `gh`; check needs only the network and git.
+// update downloads the release's dist zip with `gh`; check needs only the network and git. Both list source folders
+// with GitHub's API, which GITHUB_TOKEN lifts the unauthenticated limit of.
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, copyFileSync, readdirSync, rmSync, existsSync } from "node:fs";
@@ -52,6 +53,15 @@ function tagCommit(t) {
   return (lines.find(([, ref]) => ref.endsWith("^{}")) ?? lines[0])?.[0];
 }
 
+/** The files in a folder of core's source tree at a commit, by name. GITHUB_TOKEN, when set, lifts the API's limit. */
+async function listFolder(commit, path) {
+  const url = `https://api.github.com/repos/${CORE}/contents/${path.replace(/\/$/, "")}?ref=${commit}`;
+  const token = process.env.GITHUB_TOKEN;
+  const response = await fetch(url, { headers: { Accept: "application/vnd.github+json", ...(token ? { Authorization: `Bearer ${token}` } : {}) } });
+  if (!response.ok) throw new Error(`${url}: ${response.status}`);
+  return (await response.json()).filter((e) => e.type === "file").map((e) => e.name);
+}
+
 async function fetchBytes(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`${url}: ${response.status}`);
@@ -75,8 +85,7 @@ if (cmd === "update" && /^v\d+\.\d+\.\d+$/.test(tag ?? "")) {
     if (!here.endsWith("/")) { await take(here, from); continue; }
     // A folder: what the tag holds now, and nothing it no longer holds.
     if (existsSync(join(root, here))) for (const f of readdirSync(join(root, here))) rmSync(join(root, here, f));
-    const listed = JSON.parse(execFileSync("gh", ["api", `repos/${CORE}/contents/${from.replace(/\/$/, "")}?ref=${commit}`], { encoding: "utf8" }));
-    for (const entry of listed.filter((e) => e.type === "file").sort((a, b) => a.name.localeCompare(b.name))) await take(here + entry.name, from + entry.name);
+    for (const name of (await listFolder(commit, from)).sort()) await take(here + name, from + name);
   }
   rmSync(dir, { recursive: true, force: true });
   writeFileSync(file, `${JSON.stringify({ coreTag: tag, coreCommit: commit, files }, null, 2)}\n`);
@@ -85,16 +94,24 @@ if (cmd === "update" && /^v\d+\.\d+\.\d+$/.test(tag ?? "")) {
   const recorded = JSON.parse(readFileSync(file, "utf8"));
   const fix = `Fix: node scripts/provenance.mjs update ${recorded.coreTag}`;
   const problems = [];
+  const folders = Object.keys(MAP).filter((k) => k.endsWith("/"));
   for (const [here, from] of Object.entries(MAP)) {
     if (!here.endsWith("/")) {
       if (!recorded.files[here]) problems.push(`${here}: not recorded. ${fix}`);
+      else if (recorded.files[here].from !== from) problems.push(`${here}: recorded from ${recorded.files[here].from}, not ${from}. ${fix}`);
       continue;
     }
-    const inFolder = Object.keys(recorded.files).filter((k) => k.startsWith(here));
-    if (!inFolder.length) problems.push(`${here}: nothing recorded from ${from}. ${fix}`);
+    // A folder holds exactly what the tag holds there: no file dropped, none added.
+    const recordedHere = Object.keys(recorded.files).filter((k) => k.startsWith(here)).sort();
+    for (const k of recordedHere) if (recorded.files[k].from !== from + k.slice(here.length)) problems.push(`${k}: recorded from ${recorded.files[k].from}, not ${from + k.slice(here.length)}. ${fix}`);
     const present = existsSync(join(root, here)) ? readdirSync(join(root, here)).map((f) => here + f) : [];
     for (const f of present) if (!recorded.files[f]) problems.push(`${f}: not from ${recorded.coreTag}. Vendored folders hold only core's files. ${fix}`);
+    try {
+      const atTag = (await listFolder(recorded.coreCommit, from)).map((name) => here + name).sort();
+      if (JSON.stringify(atTag) !== JSON.stringify(recordedHere)) problems.push(`${here}: ${recorded.coreTag}'s ${from} holds ${atTag.length} files, ${recordedHere.length} recorded. ${fix}`);
+    } catch (e) { problems.push(`${here}: ${e.message}`); }
   }
+  for (const here of Object.keys(recorded.files)) if (!MAP[here] && !folders.some((f) => here.startsWith(f))) problems.push(`${here}: recorded but not vendored by this script. ${fix}`);
   for (const [here, { from, sha256 }] of Object.entries(recorded.files)) {
     let bytes;
     try { bytes = readFileSync(join(root, here)); } catch { problems.push(`${here}: missing. ${fix}`); continue; }

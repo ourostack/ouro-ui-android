@@ -18,17 +18,31 @@ object ComposedJson {
     /** The value as JSON text, as JavaScript's `JSON.stringify` writes it: no spaces, keys in their order. */
     fun stringify(value: Any?): String = StringBuilder().also { write(it, value) }.toString()
 
-    /** A number as JavaScript writes it: 4 for 4.0, 0.5, 1e-7. */
-    fun number(n: Number): String = when (n) {
-        is Double, is Float -> {
-            val d = n.toDouble()
-            when {
-                d.isNaN() || d.isInfinite() -> "null"
-                d == Math.rint(d) && kotlin.math.abs(d) < 1e21 -> d.toLong().toString()
-                else -> d.toString().replace("E", "e").replace(".0e", "e").replace(Regex("e(\\d)"), "e+$1")
+    /**
+     * A number as JavaScript writes it (ECMAScript's Number::toString): 4 for 4.0, 0.00015, 12345678.5,
+     * 100000000000000000000, 1e+21 and 1e-7. JSON has no NaN or infinity, so they are null.
+     */
+    fun number(n: Number): String {
+        if (n is Long || n is Int || n is Short || n is Byte) return n.toString()
+        val d = n.toDouble()
+        if (d.isNaN() || d.isInfinite()) return "null"
+        if (d == 0.0) return "0"
+        // The shortest digits that read back as d, and where the decimal point goes among them.
+        val exact = java.math.BigDecimal(d.toString()).stripTrailingZeros()
+        val digits = exact.unscaledValue().abs().toString()
+        val k = digits.length
+        val point = k - exact.scale()
+        val sign = if (d < 0) "-" else ""
+        val text = when {
+            point in k..21 -> digits + "0".repeat(point - k)
+            point in 1..21 -> digits.substring(0, point) + "." + digits.substring(point)
+            point in -5..0 -> "0." + "0".repeat(-point) + digits
+            else -> {
+                val e = point - 1
+                (if (k == 1) digits else digits[0] + "." + digits.substring(1)) + "e" + (if (e >= 0) "+" else "-") + kotlin.math.abs(e)
             }
         }
-        else -> n.toLong().toString()
+        return sign + text
     }
 
     private fun write(out: StringBuilder, v: Any?) {
@@ -76,8 +90,16 @@ object ComposedJson {
         out.append('"')
     }
 
+    /** How deep JSON may nest before it is refused: past any tree or data model, short of the stack. */
+    const val MAX_DEPTH = 512
+
     private class Reader(val s: String) {
         var at = 0
+        private var depth = 0
+
+        private fun deeper() {
+            if (++depth > MAX_DEPTH) fail("nested more than $MAX_DEPTH deep")
+        }
 
         fun space() {
             while (at < s.length && s[at] in " \t\n\r") at++
@@ -106,10 +128,12 @@ object ComposedJson {
 
         private fun obj(): Map<String, Any?> {
             val out = LinkedHashMap<String, Any?>()
+            deeper()
             at++
             space()
             if (at < s.length && s[at] == '}') {
                 at++
+                depth--
                 return out
             }
             while (true) {
@@ -127,6 +151,7 @@ object ComposedJson {
                     ',' -> at++
                     '}' -> {
                         at++
+                        depth--
                         return out
                     }
                     else -> fail("expected ',' or '}'")
@@ -136,10 +161,12 @@ object ComposedJson {
 
         private fun list(): List<Any?> {
             val out = ArrayList<Any?>()
+            deeper()
             at++
             space()
             if (at < s.length && s[at] == ']') {
                 at++
+                depth--
                 return out
             }
             while (true) {
@@ -151,6 +178,7 @@ object ComposedJson {
                     ',' -> at++
                     ']' -> {
                         at++
+                        depth--
                         return out
                     }
                     else -> fail("expected ',' or ']'")
