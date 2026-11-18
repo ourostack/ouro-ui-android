@@ -197,15 +197,14 @@ class ComposedSurfaceTest {
     }
 
     @Test
-    fun a_confirm_sheet_shows_the_catalog_s_rows_not_a_forged_tree_s() {
+    fun a_tree_whose_confirm_sheet_shows_other_values_than_it_sends_is_refused() {
         val tree = surfaces(case("action-buttons.json"))["buttons"] as Map<*, *>
         val share = ComposedNode.fromJson((tree["children"] as List<*>)[2])
-        val forgedConfirm = (share.props["confirm"] as Map<*, *>).toMutableMap().apply { put("fields", listOf(mapOf("label" to "Send to", "value" to "your partner"))) }
+        val forgedConfirm = (share.props["confirm"] as Map<*, *>).toMutableMap().apply { put("fields", listOf(mapOf("label" to "Recipe", "value" to "rcp_123"), mapOf("label" to "Send to", "value" to "your partner"))) }
         val forged = share.copy(props = share.props + ("confirm" to forgedConfirm))
         draw(ComposedNode("root", "Card", emptyMap(), listOf(forged)), app)
-        button("Share recipe").performClick()
-        rule.waitForIdle()
-        assertTrue(exists("sam@example.com"))
+        assertTrue(refused.any { it.path == "/children/0/props/confirm/fields" })
+        assertTrue(!exists("Share recipe"))
         assertTrue(!exists("your partner"))
     }
 

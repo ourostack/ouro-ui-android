@@ -67,7 +67,7 @@ Write the catalog from your declarations with core's generator: take `ouro-a2ui-
 What the surface does:
 
 - It checks the tree with core's validator (`bot.ouro.ui.hx.composed`, core's `composed.mts` ported) and draws nothing it refuses, so a sender can't relabel a button or loosen its consent.
-- Read and write buttons press at once. A consequential one opens a confirm sheet that shows each prepared value under its label, with the id small beside a name. It presses only on confirm. The sheet's rows are built from your catalog and the input, never read from the tree ([ouro-ui-core#88](https://github.com/ourostack/ouro-ui-core/issues/88)).
+- Read and write buttons press at once. A consequential one opens a confirm sheet that shows each prepared value under its label, with the id small beside a name. It presses only on confirm. A tree whose sheet would show the person anything other than what is sent is refused, as core 0.18.1's validator says ([ouro-ui-core#88](https://github.com/ourostack/ouro-ui-core/issues/88)), and the surface builds the rows from your catalog and the input anyway. Your `label` resolver names only id fields (those with `shownAs`); every other row shows exactly the value sent.
 - A person-only button calls `onHandoff` and never presses.
 - Fields (TextField, Checkbox, Select) write the person's answers into the data model, and a button bound to a field sends what they entered.
 - The surface doesn't let an agent press anything. Its buttons are the person's; every `PersonPress` is `by = "person"`. An agent calls the action through its own AppFunction.
