@@ -103,6 +103,38 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false) {
                         OuroItem("Pantry list", Modifier.testTag("item-outline"), description = "12 things", variant = OuroFrame.Outline, size = OuroDensity.Sm, onPress = {})
                     }
                 }
+                if (only == null || only == "checkbox") {
+                    Column(Modifier.testTag("gallery-checkbox"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OuroCheckbox(if (long) LONG else "I agree to the terms", checked = false, onCheckedChange = {}, Modifier.testTag("checkbox-case-terms"), required = true, description = if (long) LONG else null)
+                        OuroCheckbox("Whole basket", checked = false, onCheckedChange = {}, Modifier.testTag("checkbox-case-mixed"), indeterminate = true)
+                        OuroCheckbox("Make it vegetarian", checked = true, onCheckedChange = {}, Modifier.testTag("checkbox-checked"), description = "Swaps the stock for vegetable stock.")
+                        OuroCheckbox("Pantry staples", checked = false, onCheckedChange = {}, Modifier.testTag("checkbox-error"), error = "Choose at least one.")
+                        OuroCheckbox("Select all", checked = true, onCheckedChange = {}, Modifier.testTag("checkbox-hidden-label"), hideLabel = true)
+                    }
+                }
+                if (only == null || only == "text-field") {
+                    Column(Modifier.testTag("gallery-text-field"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OuroTextField(
+                            if (long) LONG else "Email", value = "", onValueChange = {}, Modifier.testTag("text-field-case-email-with-description"),
+                            type = OuroTextFieldType.Email, required = true, description = if (long) LONG else "We send your recipes here.",
+                        )
+                        OuroTextField("Password", value = "lemon-orzo", onValueChange = {}, Modifier.testTag("text-field-case-password"), type = OuroTextFieldType.Password)
+                        OuroTextField("Recipe title", value = "", onValueChange = {}, Modifier.testTag("text-field-case-with-error"), error = "Give the recipe a title.", placeholder = "Lemon orzo")
+                    }
+                }
+                if (only == null || only == "separator") {
+                    Column(Modifier.testTag("gallery-separator"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OuroSeparator(Modifier.testTag("separator-line"))
+                        OuroSeparator(Modifier.testTag("separator-case-or"), label = if (long) LONG else "or")
+                        OuroSeparator(Modifier.testTag("separator-success"), tone = OuroTone.Success)
+                    }
+                }
+                if (only == null || only == "description-list") {
+                    OuroDescriptionList(
+                        listOf(OuroDescriptionItem(if (long) LONG else "Prep time", if (long) LONG else "20 minutes"), OuroDescriptionItem("Serves", "6")),
+                        Modifier.testTag("gallery-description-list"),
+                    )
+                }
             }
         }
     }

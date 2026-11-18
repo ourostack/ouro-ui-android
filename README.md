@@ -18,7 +18,7 @@ The maintainer owns no Android phone or tablet. Everything in this repository is
 
 | Part | What it is |
 |---|---|
-| `ouro-hx` (`bot.ouro.ui:ouro-hx`) | `OuroTheme` from core's tokens (six themes, light and dark, increased contrast, reduce motion), and `OuroButton`, `OuroBadge`, `OuroCard` and `OuroItem`, Apple's first set. |
+| `ouro-hx` (`bot.ouro.ui:ouro-hx`) | `OuroTheme` from core's tokens (six themes, light and dark, increased contrast, reduce motion), `OuroButton`, `OuroBadge`, `OuroCard` and `OuroItem` (Apple's first set), and `OuroCheckbox`, `OuroTextField`, `OuroSeparator` and `OuroDescriptionList`. |
 | `ouro-actions` (`bot.ouro.ui:ouro-actions`) | The runtime behind every action. A person's press and an agent's AppFunction call take one path. A person-only action refuses agents with core's typed refusal, and a consequential one is refused until the person confirms. |
 | `vendor/core/ouro-actions-android.mts` | Core's Android generator, vendored from its release by SHA-256: action declarations become `OuroActions.kt` (an AppFunction per action an agent may call, none for person-only) and `doors.json` (which door carries which action, and why not). |
 | `vendor/core/composed` | Core's composed-tree catalogs and conformance cases. The catalog comes from the release's dist and the cases from the tag's commit, each pinned by SHA-256 in `core-provenance.json`. `ouro-hx`'s port of core's `composed.mts` (`bot.ouro.ui.hx.composed`) is tested against every tree they hold. |
