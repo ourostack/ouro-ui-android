@@ -11,7 +11,7 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.triStateToggleable
@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.SpanStyle
@@ -106,13 +105,11 @@ fun OuroCheckbox(
     ) {
         Row(
             Modifier
-                .heightIn(min = OuroMinTarget)
+                .sizeIn(minWidth = OuroMinTarget, minHeight = OuroMinTarget)
                 .triStateToggleable(state = state, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Checkbox) { onCheckedChange(!checked || indeterminate) }
-                .semantics(mergeDescendants = true) {
-                    contentDescription = name
-                    if (error != null) this.error(error)
-                },
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .semantics(mergeDescendants = true) { contentDescription = name },
+            // The error and description are read next, as their own words: TalkBack doesn't say a toggle's error.
+            horizontalArrangement = Arrangement.spacedBy(12.dp, if (hideLabel) Alignment.CenterHorizontally else Alignment.Start),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Canvas(Modifier.size(20.dp).graphicsLayer { scaleX = scale; scaleY = scale }.clearAndSetSemantics {}) {

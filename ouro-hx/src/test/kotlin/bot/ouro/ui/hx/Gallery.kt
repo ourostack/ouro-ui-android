@@ -109,6 +109,7 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false) {
                         OuroCheckbox("Whole basket", checked = false, onCheckedChange = {}, Modifier.testTag("checkbox-case-mixed"), indeterminate = true)
                         OuroCheckbox("Make it vegetarian", checked = true, onCheckedChange = {}, Modifier.testTag("checkbox-checked"), description = "Swaps the stock for vegetable stock.")
                         OuroCheckbox("Pantry staples", checked = false, onCheckedChange = {}, Modifier.testTag("checkbox-error"), error = "Choose at least one.")
+                        OuroCheckbox("Select all", checked = true, onCheckedChange = {}, Modifier.testTag("checkbox-hidden-label"), hideLabel = true)
                     }
                 }
                 if (only == null || only == "text-field") {

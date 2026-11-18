@@ -17,6 +17,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActionScope
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -145,7 +146,16 @@ fun OuroTextField(
                     else -> ImeAction.Done
                 },
             ),
-            keyboardActions = KeyboardActions(onDone = { onSubmit?.invoke() }, onSearch = { onSubmit?.invoke() }),
+            // Without onSubmit, Done keeps its own action: it hides the keyboard.
+            keyboardActions = KeyboardActions(
+                onDone = onSubmit?.let { submit ->
+                    fun KeyboardActionScope.() {
+                        submit()
+                        defaultKeyboardAction(ImeAction.Done)
+                    }
+                },
+                onSearch = onSubmit?.let { submit -> fun KeyboardActionScope.() { submit() } },
+            ),
             singleLine = singleLine,
             minLines = minLines,
             visualTransformation = if (password && !revealed) PasswordVisualTransformation() else VisualTransformation.None,
@@ -183,7 +193,8 @@ fun OuroTextField(
                 }
             },
         )
-        if (error != null) BasicText(error, style = TextStyle(color = errorColor, fontSize = 14.sp, lineHeight = 20.sp))
+        // The field itself says its error; the words under it are for the eye, so they aren't read twice.
+        if (error != null) BasicText(error, Modifier.semantics { hideFromAccessibility() }, style = TextStyle(color = errorColor, fontSize = 14.sp, lineHeight = 20.sp))
         if (description != null) BasicText(description, style = TextStyle(color = descriptionColor, fontSize = 14.sp, lineHeight = 20.sp))
     }
 }
