@@ -35,7 +35,8 @@ jobs:
         run: node scripts/attribution.mjs "origin/$BASE_REF" "$PR_HEAD"
 
   generated:
-    # The vendored core files match their release, by SHA-256, and the sample's Android projection matches its declarations.
+    # The vendored core files match their release, by SHA-256; the sample's Android projection and composed catalog match its
+    # declarations, and the card an agent composed for it passes core's validator.
     name: generated
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -48,6 +49,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - run: node vendor/core/ouro-actions-android.mts check samples/shop/shopping.actions.mts samples/shop/src/main/kotlin/bot/ouro/shop/actions
+      # The sample's composed catalog matches its declarations, and the card an agent composed for it passes core's validator.
+      - run: node vendor/core/ouro-a2ui-catalog.mts check samples/shop/shopping.actions.mts samples/shop/src/main/assets/shopping.catalog.json
+      - run: node samples/shop/agent-card.mts check
 
   build:
     # ouro-actions' runtime tests; ouro-hx's claims (Robolectric: semantics, reports and pixels) and its snapshots in

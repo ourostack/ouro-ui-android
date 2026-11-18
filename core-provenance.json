@@ -10,6 +10,22 @@
       "from": "dist/actions/ouro-actions-android.mts",
       "sha256": "3e3da5a8d4cea41ca9f8b4e5fa1cf330a47ac5c13f64bffe94b3d66c5e8cd423"
     },
+    "vendor/core/ouro-composed.mts": {
+      "from": "dist/composed/ouro-composed.mts",
+      "sha256": "179d2797fd0b6e974e0fca661696fe08ce9b1a549d78a013bd9b3bfcba38ff7d"
+    },
+    "vendor/core/ouro-mcp-app.mts": {
+      "from": "dist/composed/ouro-mcp-app.mts",
+      "sha256": "9788695c40419f077c17d65f054b3871b9408eeecc20826401dbe2fc0f8b0cb4"
+    },
+    "vendor/core/ouro-a2ui.mts": {
+      "from": "dist/a2ui/ouro-a2ui.mts",
+      "sha256": "403aafaa9bb96bcee98b59731a00ed96e841a4f5ae31493b6e90e3c0630d295f"
+    },
+    "vendor/core/ouro-a2ui-catalog.mts": {
+      "from": "dist/a2ui/ouro-a2ui-catalog.mts",
+      "sha256": "bc241cf9711eb0c019607d7a727a02a4c6c8599eb268b05e2953c52a1ddd36cd"
+    },
     "vendor/core/components.claims.json": {
       "from": "dist/hx/components.claims.json",
       "sha256": "67648917e86d330556f6221d449f14bf339331ce168c6fff0df379ba59cfc160"

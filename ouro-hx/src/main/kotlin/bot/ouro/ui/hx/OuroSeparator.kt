@@ -40,8 +40,9 @@ fun OuroSeparator(
     val look = Ouro.look
     val c = look.colors
     val lineColor = tone?.let { OuroPaint.tone(c, it).first } ?: c.border
-    val labelColor = OuroColor.readable(c.mutedForeground, c.background, look.textContrast)
-    val reported = report("kind" to "separator", "label" to OuroColor.hex(labelColor), "behind" to OuroColor.hex(c.background), "labelled" to (label != null))
+    val behind = Ouro.surface
+    val labelColor = OuroColor.readable(c.mutedForeground, behind, look.textContrast)
+    val reported = report("kind" to "separator", "label" to OuroColor.hex(labelColor), "behind" to OuroColor.hex(behind), "labelled" to (label != null))
     if (orientation == OuroOrientation.Vertical) {
         Box(modifier.fillMaxHeight().width(1.dp).background(lineColor).clearAndSetSemantics { ouroReport = reported })
         return

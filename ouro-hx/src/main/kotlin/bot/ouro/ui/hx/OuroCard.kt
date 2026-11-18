@@ -38,7 +38,8 @@ internal const val LARGE_TEXT_SCALE = 1.5f
 
 /**
  * A surface that groups a title, a line under it, a body and a row of controls. Its title is a heading; [action] is
- * one control beside the title, which goes under it at the largest text sizes.
+ * one control beside the title, which goes under it at the largest text sizes. What it holds reads its surface from
+ * [LocalOuroSurface], so its words keep their contrast on the card.
  */
 @Composable
 fun OuroCard(
@@ -76,17 +77,19 @@ fun OuroCard(
                     if (description != null) BasicText(description, style = TextStyle(color = descriptionColor, fontSize = 14.sp, lineHeight = 20.sp))
                 }
             }
-            if (large || action == null) {
-                words()
-                action?.invoke()
-            } else {
-                Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.Top) {
-                    Column(Modifier.weight(1f)) { words() }
-                    action()
+            CompositionLocalProvider(LocalOuroSurface provides surface) {
+                if (large || action == null) {
+                    words()
+                    action?.invoke()
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(gap), verticalAlignment = Alignment.Top) {
+                        Column(Modifier.weight(1f)) { words() }
+                        action()
+                    }
                 }
             }
         }
-        if (content != null) CompositionLocalProvider(LocalOuroContentColor provides titleColor) { content() }
-        footer?.invoke()
+        if (content != null) CompositionLocalProvider(LocalOuroContentColor provides titleColor, LocalOuroSurface provides surface) { content() }
+        if (footer != null) CompositionLocalProvider(LocalOuroSurface provides surface) { footer() }
     }
 }

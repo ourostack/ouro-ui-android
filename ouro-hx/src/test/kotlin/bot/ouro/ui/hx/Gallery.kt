@@ -22,6 +22,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import bot.ouro.ui.hx.composed.ComposedCatalog
+import bot.ouro.ui.hx.composed.ComposedJson
+import bot.ouro.ui.hx.composed.ComposedNode
 import bot.ouro.ui.hx.tokens.OuroThemeName
 
 /** One setting a claim is checked under. */
@@ -135,6 +138,30 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false) {
                         Modifier.testTag("gallery-description-list"),
                     )
                 }
+            }
+        }
+    }
+}
+
+/** A tree from core's own cases, as an agent composed it: fields, a write button and a consequential one, then every button kind. */
+@Composable
+fun ComposedGallery(setting: Setting) {
+    val density = LocalDensity.current
+    val dir = java.io.File("../vendor/core/composed")
+    val catalog = androidx.compose.runtime.remember { ComposedCatalog.parse(java.io.File(dir, "recipe.catalog.json").readText()) }
+    val trees = androidx.compose.runtime.remember {
+        listOf("inputs.json" to "plan", "action-buttons.json" to "buttons").map { (file, surface) ->
+            val case = ComposedJson.parse(java.io.File(dir, "cases/$file").readText()) as Map<*, *>
+            val tree = ComposedNode.fromJson(((case["expect"] as Map<*, *>)["surfaces"] as Map<*, *>)[surface])
+            @Suppress("UNCHECKED_CAST")
+            val data = (((case["messages"] as List<*>)[0] as Map<*, *>)["createSurface"] as Map<*, *>)["dataModel"] as? Map<String, Any?> ?: emptyMap()
+            tree to data
+        }
+    }
+    OuroTheme(setting.theme, dark = setting.dark, increasedContrast = setting.increasedContrast, reduceMotion = setting.reduceMotion) {
+        CompositionLocalProvider(LocalDensity provides Density(density.density, setting.fontScale)) {
+            Column(Modifier.testTag("composed-gallery").background(Ouro.look.colors.background).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                for ((tree, data) in trees) OuroComposedSurface(tree, catalog, onPress = {}, onHandoff = { _, _ -> }, data = data)
             }
         }
     }

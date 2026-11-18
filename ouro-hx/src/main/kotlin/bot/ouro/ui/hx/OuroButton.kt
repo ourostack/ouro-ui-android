@@ -73,7 +73,8 @@ fun OuroButton(
     icon: (@Composable () -> Unit)? = null,
 ) {
     val look = Ouro.look
-    val paint = remember(look, tone, variant) { OuroPaint.resolve(look.colors, tone, variant, look.textContrast) }
+    val under = Ouro.surface
+    val paint = remember(look, tone, variant, under) { OuroPaint.resolve(look.colors, tone, variant, look.textContrast, under) }
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
     val hovered by interaction.collectIsHoveredAsState()
@@ -90,7 +91,7 @@ fun OuroButton(
         else -> paint.fill
     }
     val shape = RoundedCornerShape(look.radius)
-    val behind = paint.behind(look.colors.background)
+    val behind = paint.behind(under)
     val padding = when (size) {
         OuroSize.Sm -> PaddingValues(horizontal = 12.dp, vertical = 6.dp)
         OuroSize.Md -> PaddingValues(horizontal = 16.dp, vertical = 10.dp)

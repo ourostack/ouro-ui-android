@@ -39,15 +39,16 @@ fun OuroDescriptionList(
 ) {
     val look = Ouro.look
     val c = look.colors
-    val termColor = OuroColor.readable(c.mutedForeground, c.background, look.textContrast)
-    val detailsColor = OuroColor.readable(c.foreground, c.background, look.textContrast)
+    val behind = Ouro.surface
+    val termColor = OuroColor.readable(c.mutedForeground, behind, look.textContrast)
+    val detailsColor = OuroColor.readable(c.foreground, behind, look.textContrast)
     val large = LocalDensity.current.fontScale >= LARGE_TEXT_SCALE
     val termStyle = TextStyle(color = termColor, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium)
     val detailsStyle = TextStyle(color = detailsColor, fontSize = 16.sp, lineHeight = 22.sp)
     BoxWithConstraints(
         modifier.semantics {
             isTraversalGroup = true
-            ouroReport = report("kind" to "description-list", "term" to OuroColor.hex(termColor), "details" to OuroColor.hex(detailsColor), "surface" to OuroColor.hex(c.background), "pairs" to items.size)
+            ouroReport = report("kind" to "description-list", "term" to OuroColor.hex(termColor), "details" to OuroColor.hex(detailsColor), "surface" to OuroColor.hex(behind), "pairs" to items.size)
         },
     ) {
         val stacked = large || maxWidth < stackBelow.width

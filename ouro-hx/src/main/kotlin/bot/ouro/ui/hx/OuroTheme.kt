@@ -14,7 +14,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import bot.ouro.ui.hx.tokens.OuroColors
@@ -49,11 +51,19 @@ data class OuroLook(
 /** The look the components read. Outside [OuroTheme] it is Pearl in light mode. */
 val LocalOuroLook = staticCompositionLocalOf { OuroLook.of(OuroTokens.defaultTheme, dark = false) }
 
+/** The surface components sit on, when it isn't the page: an outlined [OuroCard] sets its card colour for what it holds. */
+val LocalOuroSurface = compositionLocalOf<Color?> { null }
+
 /** The current look: `Ouro.look.colors.primary`. */
 object Ouro {
     val look: OuroLook
         @Composable @ReadOnlyComposable
         get() = LocalOuroLook.current
+
+    /** What components draw on and measure their contrast against: the card they sit in, else the page. */
+    val surface: Color
+        @Composable @ReadOnlyComposable
+        get() = LocalOuroSurface.current ?: LocalOuroLook.current.colors.background
 }
 
 /**
