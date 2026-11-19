@@ -56,6 +56,7 @@ shot gallery-cookbook --es screen gallery --es theme cookbook --ez dark false
 shot agent-console --es screen agent --ez dark false
 shot composed-light --es screen composed --ez dark false --ez contrast false
 shot composed-dark --es screen composed --ez dark true --ez contrast false
+shot a2ui-light --es screen a2ui --ez dark false --ez contrast false
 adb shell am force-stop bot.ouro.shop
 adb logcat -d | grep -iE "appfunction|appsearch.*(index|app_?fun)" | tail -300 > "$EV/logcat-appfunctions.txt" || true
 adb logcat -b crash -d > "$EV/logcat-crash.txt" 2>&1 || true

@@ -342,6 +342,40 @@ class ComposedSurfaceTest {
     }
 
     @Test
+    fun an_a2ui_card_is_drawn_as_its_tree_and_a_press_sends_a2ui_s_action_message() {
+        val c = case("inputs.json")
+        val state = OuroComposedState(app)
+        val sent = mutableListOf<Map<String, Any?>>()
+        rule.setContent {
+            OuroTheme(dark = false, increasedContrast = false, reduceMotion = false) {
+                OuroComposedSurface(state, onPress = { presses += it }, onHandoff = { a, how -> handoffs += a to how }, image = picture, onRefused = { refused += it }, onA2UIAction = { sent += it })
+            }
+        }
+        val result = mapOf("structuredContent" to mapOf("a2ui" to mapOf("version" to "1.0", "catalogId" to app.catalogId, "messages" to c["messages"])))
+        rule.runOnIdle { assertEquals(emptyList<TreeProblem>(), state.receive(result)) }
+        assertEquals("plan", state.a2uiSurfaceId)
+        assertTrue(exists("Lemon orzo"))
+        rule.onNode(hasSetTextAction() and hasContentDescription("Servings")).performTextReplacement("6")
+        button("Add ingredients to list").performClick()
+        rule.waitForIdle()
+        val action = sent.single()["action"] as Map<*, *>
+        assertEquals("add_recipe_to_shopping_list", action["name"])
+        assertEquals("plan", action["surfaceId"])
+        assertEquals("shop", action["sourceComponentId"])
+        assertEquals(mapOf("recipe" to "rcp_lemon_orzo", "servings" to 6L), action["context"])
+        assertTrue("an A2UI card's press goes to onA2UIAction, not onPress", presses.isEmpty())
+
+        // The same stream again keeps what the person typed; a stream that fails the checks shows the short alert.
+        rule.runOnIdle { assertEquals(emptyList<TreeProblem>(), state.receive(result)) }
+        rule.onNode(hasSetTextAction() and hasContentDescription("Servings")).assert(hasText("6"))
+        val forged = listOf(mapOf("version" to "1.0", "createSurface" to mapOf("surfaceId" to "s", "catalogId" to app.catalogId, "components" to listOf(mapOf("id" to "root", "component" to "Button", "label" to "Pay")))))
+        rule.runOnIdle { assertEquals("/0/createSurface/components/0/component", state.receiveA2UI(forged).single().path) }
+        rule.onNodeWithTag("composed.refused").assertExists()
+        assertTrue(!exists("Pay"))
+        assertEquals(null, state.a2uiSurfaceId)
+    }
+
+    @Test
     fun new_data_for_the_same_card_keeps_the_person_s_answers_where_the_agent_left_the_value() {
         val c = case("inputs.json")
         val tree = ComposedNode.fromJson(surfaces(c)["plan"])

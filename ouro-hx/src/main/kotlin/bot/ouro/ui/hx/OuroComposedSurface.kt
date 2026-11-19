@@ -1,6 +1,7 @@
 // Ouro's composed tree drawn with Ouro HX, as web's ComposedSurface and Apple's draw it: the UI an agent composes for a
 // person, every button one of the app's declared actions. The tree comes from bot.ouro.ui.hx.composed (core's
-// composed.mts, ported); this file draws it. Android draws Ouro's tree itself and reads no A2UI messages.
+// composed.mts, ported); this file draws it. A card that comes as A2UI messages is resolved into the same tree by core's
+// A2UI adapter (OuroA2UI, ported), and must pass the same checks before it is drawn.
 package bot.ouro.ui.hx
 
 import android.graphics.BitmapFactory
@@ -64,10 +65,12 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import bot.ouro.ui.hx.composed.A2UIProblem
 import bot.ouro.ui.hx.composed.ComposedAnswers
 import bot.ouro.ui.hx.composed.ComposedCatalog
 import bot.ouro.ui.hx.composed.ComposedNode
 import bot.ouro.ui.hx.composed.LabelContext
+import bot.ouro.ui.hx.composed.OuroA2UI
 import bot.ouro.ui.hx.composed.OuroComposed
 import bot.ouro.ui.hx.composed.PersonPress
 import bot.ouro.ui.hx.composed.TreeProblem
@@ -137,7 +140,7 @@ fun OuroComposedSurface(
     var answers by remember { mutableStateOf(ComposedAnswers.of(data)) }
     // New data from the agent: keep what the person entered, except where the agent changed it.
     if (answers.data !== data) answers = answers.carry(data)
-    ComposedBody(tree, catalog, answers.current, { pointer, value -> answers = answers.write(pointer, value) }, onPress, onHandoff, modifier, label, image)
+    ComposedBody(tree, catalog, answers.current, { pointer, value -> answers = answers.write(pointer, value) }, { press, _ -> onPress(press) }, onHandoff, modifier, label, image)
 }
 
 /**
@@ -154,6 +157,10 @@ fun OuroComposedSurface(
  * of it or none. While one can't apply, the surface shows the short alert, and the last tree that applied, with what the
  * person entered, stays for the next update. A tool result that carries a tree, even one refused, takes the card's
  * place, so an update never changes a card the agent has since replaced.
+ *
+ * A card can also come as A2UI messages ([receiveA2UI], or a tool result's `structuredContent.a2ui`): core's A2UI
+ * adapter ([OuroA2UI]) resolves them into the same tree, which must pass the same checks. A stream that fails them shows
+ * the same short alert, and [receiveA2UI] returns its problems in A2UI's error format, for the agent.
  *
  * [rememberOuroComposedState] lasts as long as the composition. To keep the card and the person's answers when the
  * Activity is recreated (a rotation, a theme change), hold an `OuroComposedState` in your ViewModel instead, or
@@ -178,8 +185,17 @@ class OuroComposedState(val catalog: ComposedCatalog) {
     /** What the person has entered so far, over the agent's data: what a bound button would send. */
     val entered: Any? get() = answers.current
 
+    /** The A2UI surface shown, when the card came as A2UI messages ([receiveA2UI]); null otherwise. */
+    var a2uiSurfaceId by mutableStateOf<String?>(null)
+        private set
+
+    // Which createSurface made the A2UI surface shown: the same one shown again keeps the person's answers.
+    private var origin: Pair<String, Int>? = null
+
     /** A whole tree and its data, in place of the card: what the person entered stays where the agent left it. */
     fun show(tree: ComposedNode, data: Map<String, Any?> = emptyMap()): List<TreeProblem> {
+        a2uiSurfaceId = null
+        origin = null
         val found = OuroComposed.validateTree(catalog, tree)
         if (found.isNotEmpty()) {
             this.tree = null
@@ -213,8 +229,63 @@ class OuroComposedState(val catalog: ComposedCatalog) {
         return problems
     }
 
-    /** A tool result ([OuroComposed.read]): its tree takes the card's place, or its update applies to it. */
-    fun receive(result: Any?): List<TreeProblem> = when (val read = OuroComposed.read(catalog, result)) {
+    /**
+     * A card that came as A2UI messages, such as a tool result's `structuredContent.a2ui.messages`
+     * ([OuroA2UI.messagesOf]), in place of the card: core's A2UI adapter resolves them into Ouro's composed tree and data
+     * model ([OuroA2UI.resolveMessages]), and the tree must pass the same checks as one sent itself. It shows
+     * [surfaceId], or the first surface the messages leave. Returns the problems, in A2UI's error format for the agent:
+     * empty when it shows the card (or the surface has no root yet, so there is nothing to show).
+     *
+     * Pass every message so far, again as more arrive: while the surface is the one the same `createSurface` made, what
+     * the person entered stays, except where the agent changed the value or the list item it sits in.
+     */
+    fun receiveA2UI(messages: Any?, surfaceId: String? = null): List<A2UIProblem> {
+        val resolved = OuroA2UI.resolveMessages(catalog, messages)
+        if (!resolved.valid) return refuseA2UI(resolved.problems)
+        val surface = if (surfaceId == null) resolved.surfaces.firstOrNull() else resolved.surfaces.firstOrNull { it.surfaceId == surfaceId }
+        if (surface == null) {
+            val ids = resolved.surfaces.joinToString(", ") { it.surfaceId }.ifEmpty { "none" }
+            return refuseA2UI(listOf(
+                if (surfaceId == null) A2UIProblem("VALIDATION_FAILED", "", "The messages leave no surface to show; create one with createSurface.")
+                else A2UIProblem("VALIDATION_FAILED", "", "No surface $surfaceId in the messages; they leave $ids.", surfaceId),
+            ))
+        }
+        val created = (messages as List<*>).indexOfLast { ((it as? Map<*, *>)?.get("createSurface") as? Map<*, *>)?.get("surfaceId") == surface.surfaceId }
+        val found = surface.tree?.let { OuroComposed.validateTree(catalog, it) }.orEmpty()
+        if (found.isNotEmpty()) return refuseA2UI(found.map { A2UIProblem("VALIDATION_FAILED", it.path, it.message, surface.surfaceId, null, it.refusal) })
+        @Suppress("UNCHECKED_CAST")
+        val data = (surface.data as? Map<String, Any?>).orEmpty()
+        val same = origin == (surface.surfaceId to created) && tree != null
+        answers = if (same) answers.carry(data) else ComposedAnswers.of(data)
+        tree = surface.tree?.let { ComposedNode.fromJson(it) }
+        this.data = data
+        problems = emptyList()
+        a2uiSurfaceId = surface.surfaceId
+        origin = surface.surfaceId to created
+        return emptyList()
+    }
+
+    // A stream that can't be shown takes the card's place: no later message may change the old card.
+    private fun refuseA2UI(found: List<A2UIProblem>): List<A2UIProblem> {
+        tree = null
+        answers = ComposedAnswers.of(emptyMap<String, Any?>())
+        a2uiSurfaceId = null
+        origin = null
+        problems = found.map { it.toTreeProblem() }
+        return found
+    }
+
+    /**
+     * A tool result: Ouro's tree in `structuredContent.ouro` ([OuroComposed.read]) takes the card's place, or its update
+     * applies to it; A2UI messages in `structuredContent.a2ui` go to [receiveA2UI].
+     */
+    fun receive(result: Any?): List<TreeProblem> {
+        val messages = OuroA2UI.messagesOf(result)
+        if (messages !== OuroA2UI.NoMessages) return receiveA2UI(messages).map { it.toTreeProblem() }
+        return receiveTree(result)
+    }
+
+    private fun receiveTree(result: Any?): List<TreeProblem> = when (val read = OuroComposed.read(catalog, result)) {
         is OuroComposed.Read.Ready -> show(read.tree, read.data)
         is OuroComposed.Read.Update -> update(read.update)
         is OuroComposed.Read.Refused -> {
@@ -242,7 +313,9 @@ fun rememberOuroComposedState(catalog: ComposedCatalog): OuroComposedState = rem
 /**
  * Draws the card [state] holds, as the other overload does, and applies the agent's updates to it with core's
  * `applyTreeUpdate`. While a tree, update or result can't be shown, it shows a short alert ("This card can't be
- * shown") and [onRefused] gets the problems; what the person entered stays for the next update that applies.
+ * shown") and [onRefused] gets the problems; what the person entered stays for the next update that applies. When the
+ * card came as A2UI messages ([OuroComposedState.receiveA2UI]) and [onA2UIAction] is given, each press goes to it as
+ * A2UI's `action` message ([OuroA2UI.actionMessage]) in place of [onPress].
  */
 @Composable
 fun OuroComposedSurface(
@@ -252,6 +325,7 @@ fun OuroComposedSurface(
     modifier: Modifier = Modifier,
     label: ((LabelContext) -> String?)? = null,
     image: OuroComposedImage = { url, description, m -> OuroRemoteImage(url, description, m) },
+    onA2UIAction: (suspend (Map<String, Any?>) -> Unit)? = null,
     onRefused: (List<TreeProblem>) -> Unit = {},
 ) {
     val problems = state.problems
@@ -261,7 +335,11 @@ fun OuroComposedSurface(
         return
     }
     val tree = state.tree ?: return
-    ComposedBody(tree, state.catalog, state.answers.current, { pointer, value -> state.answers = state.answers.write(pointer, value) }, onPress, onHandoff, modifier, label, image)
+    val surfaceId = state.a2uiSurfaceId
+    ComposedBody(tree, state.catalog, state.answers.current, { pointer, value -> state.answers = state.answers.write(pointer, value) }, { press, button ->
+        // A card that came as A2UI sends each press as A2UI's action message, when the app takes one.
+        if (surfaceId != null && onA2UIAction != null) onA2UIAction(OuroA2UI.actionMessage(surfaceId, button.id, press, OuroA2UI.timestamp())) else onPress(press)
+    }, onHandoff, modifier, label, image)
 }
 
 /** The short alert a card that fails the checks shows, as web's: the person learns nothing from the problems. */
@@ -289,7 +367,7 @@ private fun ComposedBody(
     catalog: ComposedCatalog,
     current: Any?,
     write: (String, Any?) -> Unit,
-    onPress: suspend (PersonPress) -> Unit,
+    onPress: suspend (PersonPress, ComposedNode) -> Unit,
     onHandoff: (action: String, how: String) -> Unit,
     modifier: Modifier,
     label: ((LabelContext) -> String?)?,
@@ -303,7 +381,7 @@ private class ComposedContext(
     val catalog: ComposedCatalog,
     val data: Any?,
     val write: (String, Any?) -> Unit,
-    val onPress: suspend (PersonPress) -> Unit,
+    val onPress: suspend (PersonPress, ComposedNode) -> Unit,
     val onHandoff: (String, String) -> Unit,
     val label: ((LabelContext) -> String?)?,
     val image: OuroComposedImage,
@@ -528,7 +606,7 @@ private fun ComposedButton(node: ComposedNode, ctx: ComposedContext, modifier: M
         busy = true
         scope.launch {
             try {
-                ctx.onPress(pressed)
+                ctx.onPress(pressed, node)
             } finally {
                 busy = false
             }

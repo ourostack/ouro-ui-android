@@ -849,7 +849,7 @@ object OuroComposed {
      * Reads an MCP tool result's `structuredContent.ouro` (core's mcp-app.mts: `{ version, catalogId, tree, data? }`, or
      * `{ version, catalogId, update }` for the tree a view already draws) and checks it against [cat]. Pass the whole
      * result, its `structuredContent`, or the `ouro` object itself. A result that carries A2UI messages instead is
-     * refused: Android draws Ouro's tree, not A2UI.
+     * refused here: [OuroA2UI] resolves those, and [bot.ouro.ui.hx.OuroComposedState.receive] takes either.
      */
     fun read(cat: ComposedCatalog, result: Any?): Read {
         val r = result as? Map<*, *>
@@ -857,7 +857,7 @@ object OuroComposed {
         val ouro = (structured?.get("ouro") as? Map<*, *>) ?: structured?.takeIf { (it.containsKey("tree") || it.containsKey("update")) && it.containsKey("version") }
         if (ouro == null) {
             val a2ui = structured?.containsKey("a2ui") == true
-            return Read.Refused(listOf(TreeProblem("/structuredContent", if (a2ui) "This result carries A2UI messages; Android draws Ouro's composed tree. Fix: send the tree (core's mcpAppTreeResult)." else "This result carries no structuredContent.ouro. Fix: send the tree (core's mcpAppTreeResult).")))
+            return Read.Refused(listOf(TreeProblem("/structuredContent", if (a2ui) "This result carries A2UI messages, not Ouro's tree. Fix: resolve them with OuroA2UI.resolveMessages, or pass the result to OuroComposedState.receive." else "This result carries no structuredContent.ouro. Fix: send the tree (core's mcpAppTreeResult).")))
         }
         if (ouro["version"] != COMPOSED_VERSION) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/version", "This renderer draws version $COMPOSED_VERSION of Ouro's tree, got ${json(ouro["version"])}.")))
         if (ouro["catalogId"] != cat.catalogId) return Read.Refused(listOf(TreeProblem("/structuredContent/ouro/catalogId", "This renderer has only the catalog ${cat.catalogId}.")))

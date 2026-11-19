@@ -308,7 +308,7 @@ class ComposedTest {
     }
 
     @Test
-    fun a_tool_result_carries_ouro_s_tree_itself_validated_and_a2ui_is_not_read_here() {
+    fun a_tool_result_carries_ouro_s_tree_itself_validated_and_read_leaves_a2ui_to_its_adapter() {
         val tree = card(shop.toJson())
         val result = mapOf("content" to listOf(mapOf("type" to "text", "text" to "Lemon orzo")), "structuredContent" to mapOf("ouro" to mapOf("version" to "1", "catalogId" to app.catalogId, "tree" to tree, "data" to mapOf("servings" to 4L))))
         val ready = OuroComposed.read(app, result) as OuroComposed.Read.Ready
