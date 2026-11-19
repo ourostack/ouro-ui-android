@@ -592,11 +592,17 @@ object OuroA2UI {
             val todo = ArrayList<Any?>().apply { add(v) }
             while (todo.isNotEmpty()) {
                 val x = todo.removeAt(todo.lastIndex)
-                left -= 1 + when (x) {
-                    is String -> x.length
-                    is Map<*, *> -> x.entries.sumOf { (k, y) -> todo += y; k.toString().length + 1 }
-                    is List<*> -> x.size.also { todo.addAll(x) }
-                    else -> 0
+                left -= 1
+                when (x) {
+                    is String -> left -= x.length
+                    is Map<*, *> -> for ((k, y) in x) {
+                        left -= k.toString().length + 1
+                        todo += y
+                    }
+                    is List<*> -> {
+                        left -= x.size
+                        todo.addAll(x)
+                    }
                 }
                 if (left < 0) throw TooBig("resolves to more than $MAX_SIZE characters of data; show less of it, or fewer list items.")
             }
