@@ -3,8 +3,8 @@
 //
 // - a person's press and an agent's call run the same handler (`perform`), so they can't drift;
 // - a person-only action refuses every agent door with core's typed refusal, and has no AppFunction at all;
-// - a consequential action asks the person first (`confirm`) and fails closed until the app says how to ask, because
-//   Android has no system prompt to ask for the app.
+// - a consequential action asks the person first (`confirm`) and fails closed when nothing says how to ask, because
+//   Android has no system prompt to ask for the app. `OuroConfirm.install` says how, with a built-in confirmation.
 package bot.ouro.ui.actions
 
 import androidx.appfunctions.AppFunctionAppUnknownException
@@ -68,8 +68,9 @@ abstract class OuroAction<I : Any, O : Any>(
     var perform: (suspend (I) -> O)? = null
 
     /**
-     * Consequential only: how the app asks the person before an agent's call runs. Return true to go ahead. Unset,
-     * an agent's call is refused.
+     * Consequential only: how the app asks the person before an agent's call runs. Return true to go ahead. Call
+     * [OuroConfirm.install] at startup to set the built-in confirmation on every action that has none; set this
+     * yourself to ask another way (it is never replaced). Unset, an agent's call is refused.
      */
     @Volatile
     var confirm: (suspend (I) -> Boolean)? = null

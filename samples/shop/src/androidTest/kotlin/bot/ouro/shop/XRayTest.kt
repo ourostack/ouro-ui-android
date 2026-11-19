@@ -4,7 +4,6 @@ package bot.ouro.shop
 
 import android.os.Build
 import androidx.appfunctions.AppFunctionData
-import androidx.appfunctions.AppFunctionDeniedException
 import androidx.appfunctions.AppFunctionManager
 import androidx.appfunctions.AppFunctionSearchSpec
 import androidx.appfunctions.ExecuteAppFunctionRequest
@@ -86,17 +85,8 @@ class XRayTest {
         assertEquals("Capers", Shop.items.last().name)
     }
 
-    @Test
-    fun a_consequential_action_is_refused_until_the_person_confirms() {
-        val fns = found()
-        val share = fns.first { it.id.endsWith("#shareShoppingList") }
-        // Other tests in this run share the list as the person; the agent's call must add nobody.
-        val before = Shop.sharedWith.toList()
-        val data = AppFunctionData.Builder(share.parameters, share.components).setString("with", "sam@example.com").build()
-        val res = runBlocking { AppFunctionManager.getInstance(context)!!.executeAppFunction(ExecuteAppFunctionRequest(context.packageName, share.id, data)) }
-        assertTrue("share: $res", res is ExecuteAppFunctionResponse.Error && res.error is AppFunctionDeniedException)
-        assertEquals(before, Shop.sharedWith.toList())
-    }
+    // An agent's share asks the person: ConfirmTest covers it. Without a confirmation the call would be refused, which
+    // ouro-actions' unit tests cover.
 
     @Test
     fun people_get_a_button_for_every_declared_action() {

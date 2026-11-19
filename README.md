@@ -53,7 +53,7 @@ The maintainer owns no Android phone or tablet. Everything in this repository is
 | Part | What it is |
 |---|---|
 | `ouro-hx` (`bot.ouro.ui:ouro-hx`) | `OuroTheme` from core's tokens (six themes, light and dark, increased contrast, reduce motion), `OuroButton`, `OuroBadge`, `OuroCard` and `OuroItem` (Apple's first set), and `OuroCheckbox`, `OuroTextField`, `OuroSeparator` and `OuroDescriptionList`. `OuroComposedSurface` draws an agent's card, as Ouro's composed tree or as A2UI messages (`OuroA2UI`, core's adapter ported). |
-| `ouro-actions` (`bot.ouro.ui:ouro-actions`) | The runtime behind every action. A person's press and an agent's AppFunction call take one path. A person-only action refuses agents with core's typed refusal, and a consequential one is refused until the person confirms. |
+| `ouro-actions` (`bot.ouro.ui:ouro-actions`) | The runtime behind every action. A person's press and an agent's AppFunction call take one path. A person-only action refuses agents with core's typed refusal, and a consequential one asks the person first with a built-in confirmation (`OuroConfirm`), which an app can replace with its own `confirm`. |
 | `vendor/core/ouro-actions-android.mts` | Core's Android generator, vendored from its release by SHA-256: action declarations become `OuroActions.kt` (an AppFunction per action an agent may call, none for person-only) and `doors.json` (which door carries which action, and why not). |
 | `vendor/core/composed` | Core's composed-tree catalogs and conformance cases. The catalog comes from the release's dist and the cases from the tag's commit, each pinned by SHA-256 in `core-provenance.json`. `ouro-hx`'s ports of core's `composed.mts` and `a2ui.mts` (`bot.ouro.ui.hx.composed`) are tested against every case they hold. |
 | `samples/shop` | A shopping list that declares its actions once and opens both doors. Its `composed` screen draws a card an agent composed (`agent-card.mts`) from the app's catalog, and its `a2ui` screen the same card arriving as A2UI messages. CI runs its X-ray and both cards on an emulator. |
@@ -81,6 +81,38 @@ OuroTheme(OuroThemeName.Pearl, dark = isSystemInDarkTheme()) {
 ```
 
 AppFunctions need compileSdk 37 and AGP 9.1 or later. Google lists Android 16 (API 36) and later. On CI's API 36 emulator image Android indexed none of the sample's AppFunctions, so CI checks them on Android 17 (API 37). To give agents your actions, declare them once as `shopping.actions.mts` does, then run core's generator into your app's sources. Take `ouro-actions.mts` and `ouro-actions-android.mts` from a [core release](https://github.com/ourostack/ouro-ui-core/releases) into one folder and run `node ouro-actions-android.mts generate <actions.mts> <dir>` (Node 22.18 or later). Declare the generated `<Set>AppFunctionService` in your manifest, as `samples/shop/src/main/AndroidManifest.xml` does.
+
+## Ask the person before a consequential call
+
+A consequential action (one that reaches other people, such as sharing a list) never runs from an agent's AppFunction call until the person says yes. Windows asks with a message box. Android has no system prompt to ask for an app, so `ouro-actions` asks itself, with platform views only (no Compose needed). Call `OuroConfirm.install` once from `Application.onCreate`, after you set your handlers:
+
+```kotlin
+class MyApp : Application() {
+    override fun onCreate() {
+        super.onCreate()
+        MyActions.bind()                            // each action's perform
+        OuroConfirm.install(this, OuroActions.set)  // the built-in confirmation, for each consequential action without a confirm
+    }
+}
+```
+
+What the person sees is the composed card's confirm sheet in platform views: the action's label as a question ("Share list?"), its description, and each prepared value under its label, then Don't and Allow. Don't is the default button. Here is how the call behaves:
+
+- **App on screen:** the confirmation opens at once.
+- **App in the background**, an AppFunction call's usual case: a high-priority notification titled with the question. Tapping it opens the confirmation. The notification has no Allow and shows none of the values, so the person reads them before they answer.
+- **No notification permission, app in the background:** nothing can ask, so the call is refused with `OuroNeedsPerson`, whose message says why and how to fix it. On Android 13 and later your app asks the person for `POST_NOTIFICATIONS` (the library's manifest declares it): `requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1)`, as the sample's agent console does. A notification channel the person turned off counts the same.
+- **Waiting:** the call suspends until the person answers or two minutes pass (`OuroConfirm.DEFAULT_TIMEOUT_MS`; pass `timeoutMs` to change it). Don't, Back, tapping outside, leaving the screen and the timeout all mean no, and no runs nothing. The agent gets AppFunctions' denied error with the reason (`The person said no to Share list.`, or that no one answered in time).
+- **One answer, for one call:** each pending confirmation has a fresh 128-bit random id. The confirmation activity isn't exported, the notification's `PendingIntent` is immutable and single-use, and the screen reads what to show from the pending confirmation under that id, never from the intent. A stale or forged intent shows nothing and answers nothing.
+
+The values come from the call's input: each field that isn't null, its name as words (`shareWith` is "Share with") and its value as text, without `idempotencyKey`. To use your own labels, or to keep them when R8 renames fields, pass `describe`:
+
+```kotlin
+OuroConfirm.install(this, OuroActions.set) { action, input ->
+    listOf(OuroConfirmRow("With", (input as ShareShoppingListInput).with))
+}
+```
+
+To ask another way, set `confirm` on the action yourself: `install` leaves any action that already has one alone. `OuroConfirm.install(this, set, timeoutMs = 30_000)` sets the wait. An action with no `confirm` at all is refused, as before, so nothing consequential runs that no person agreed to.
 
 ## Draw what an agent composed
 
@@ -120,8 +152,8 @@ Limits:
 
 ## What CI proves
 
-- **build:** `ouro-actions`' runtime tests; the A2UI adapter against core's 13 A2UI conformance cases, each giving exactly its expected trees or problems; and core's claims for every component in Robolectric. The claims are names and roles in the semantics tree, 48 dp touch targets, reduced motion, text that reflows at 200%, and contrast in all six themes with pixels sampled. It also checks the snapshots in light, dark, increased contrast and 200% text.
-- **emulator:** the sample on an Android 17 emulator, Google's automated-test image (ATD). The X-ray compares what Android indexed against the declarations. The composed card's buttons are checked as the declared actions: add runs the same handler, share runs only after the person confirms, and place order hands off without ordering. The same card arriving as A2UI messages is checked the same way, and its add sends A2UI's action message. Then CI photographs each screen.
+- **build:** `ouro-actions`' runtime tests, including the built-in confirmation (what is asked, the wait, the timeout, no permission, the ids; the notification and the screen in Robolectric); the A2UI adapter against core's 13 A2UI conformance cases, each giving exactly its expected trees or problems; and core's claims for every component in Robolectric. The claims are names and roles in the semantics tree, 48 dp touch targets, reduced motion, text that reflows at 200%, and contrast in all six themes with pixels sampled. It also checks the snapshots in light, dark, increased contrast and 200% text.
+- **emulator:** the sample on an Android 17 emulator, Google's automated-test image (ATD). The X-ray compares what Android indexed against the declarations. The composed card's buttons are checked as the declared actions: add runs the same handler, share runs only after the person confirms in the card's own sheet, and place order hands off without ordering. An agent's share through its AppFunction asks the person too: Allow runs it, and Don't and Back refuse it, with the app on screen; with the app in the background a notification asks, carries no Allow and none of the values, and opens the same confirmation. The same card arriving as A2UI messages is checked the same way, and its add sends A2UI's action message. Then CI photographs each screen.
 - **generated:** the vendored core files match their release by SHA-256 (the dist's manifest, or the tag's commit for files the dist doesn't carry), the sample's generated Kotlin and composed catalog match its declarations, and its agent card, in both formats, passes core's validators.
 
 ## License

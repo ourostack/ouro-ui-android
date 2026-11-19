@@ -6,8 +6,12 @@
 // host nor screencap can take a picture.
 package bot.ouro.shop
 
+import android.Manifest
+import android.app.Activity
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.os.Build
 import android.os.Bundle
 import androidx.core.view.drawToBitmap
 import java.io.File
@@ -144,20 +148,25 @@ private fun AgentScreen() {
     val run: () -> Unit = {
         running = true
         scope.launch {
-            lines = runCatching { askAsAgent(context) }.getOrElse { listOf(AgentLine("AppFunctions", "${it.javaClass.simpleName}: ${it.message}", OuroTone.Destructive)) }
+            lines = runCatching { askAsAgent(context) { lines = it } }.getOrElse { listOf(AgentLine("AppFunctions", "${it.javaClass.simpleName}: ${it.message}", OuroTone.Destructive)) }
             running = false
         }
     }
     LaunchedEffect(Unit) { run() }
     Heading("Agent console")
     BasicText(
-        "This app calls its own AppFunctions, as an assistant would. Add runs; share needs the person to confirm, so it is refused; place order is person-only, so agents have no door to it.",
+        "This app calls its own AppFunctions, as an assistant would. Add runs; share asks the person first (Allow runs it, Don't or no answer refuses it); place order is person-only, so agents have no door to it.",
         style = TextStyle(color = Ouro.look.colors.mutedForeground, fontSize = 14.sp),
     )
     OuroButton("Ask again", onPress = run, busy = running, variant = OuroVariant.Outline, tone = OuroTone.Secondary)
+    // On Android 13 and later an app in the background can ask the person only with a notification, which needs this permission.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+        BasicText("When this app isn't on screen, share asks with a notification.", style = TextStyle(color = Ouro.look.colors.mutedForeground, fontSize = 14.sp))
+        OuroButton("Allow notifications", onPress = { (context as Activity).requestPermissions(arrayOf(Manifest.permission.POST_NOTIFICATIONS), 1) }, variant = OuroVariant.Outline, tone = OuroTone.Secondary)
+    }
     for ((i, line) in lines.withIndex()) {
         OuroCard(Modifier.testTag("agent-$i"), title = line.call, description = line.answer, action = {
-            OuroBadge(when (line.tone) { OuroTone.Success -> "ran"; OuroTone.Destructive -> "refused"; OuroTone.Warning -> "person-only"; else -> "found" }, tone = line.tone, variant = OuroVariant.Soft)
+            OuroBadge(when { line.asking -> "asking"; line.tone == OuroTone.Success -> "ran"; line.tone == OuroTone.Destructive -> "refused"; line.tone == OuroTone.Warning -> "person-only"; else -> "found" }, tone = line.tone, variant = OuroVariant.Soft)
         })
     }
 }
