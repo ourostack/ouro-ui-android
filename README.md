@@ -72,6 +72,8 @@ dependencyResolutionManagement {
 dependencies { implementation("bot.ouro.ui:ouro-hx:0.4.0") }
 ```
 
+From v0.4.1 on, [the release workflow](.github/workflows/release.yml) gives each file it attaches a GitHub build attestation, so you can check that a library was built from its tag: `gh attestation verify ouro-hx-0.4.1.aar --repo ourostack/ouro-ui-android`.
+
 ```kotlin
 OuroTheme(OuroThemeName.Pearl, dark = isSystemInDarkTheme()) {
     OuroButton("Add to list", onPress = { /* ... */ }, tone = OuroTone.Primary)
