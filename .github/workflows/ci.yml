@@ -79,6 +79,9 @@ jobs:
       - name: Claims summary
         if: ${{ !cancelled() }}
         run: cat ouro-hx/build/ouro/claims.md >> "$GITHUB_STEP_SUMMARY" || echo "no claims report" >> "$GITHUB_STEP_SUMMARY"
+      - name: Core's conformance cases, per case
+        if: ${{ !cancelled() }}
+        run: node tools/case-results.mjs ouro-hx/build/test-results/testDebugUnitTest/TEST-bot.ouro.ui.hx.composed.A2UICaseTest.xml >> "$GITHUB_STEP_SUMMARY"
       - name: Sample app and Maven files
         run: ./gradlew --no-daemon :samples:shop:assembleDebug publishAllPublicationsToBuildRepository
       - uses: actions/upload-artifact@v4
