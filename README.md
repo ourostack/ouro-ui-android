@@ -10,6 +10,40 @@ Ouro UI's native kit for Android: core's components in Jetpack Compose for peopl
 
 The plan is core's [native-kits decision](https://github.com/ourostack/ouro-ui-core/blob/main/docs/decisions/2026-11-14-native-kits.md) and its [Android record](https://github.com/ourostack/ouro-ui-core/blob/main/docs/decisions/2026-11-14-android-kit.md). There is one Compose kit, component specs are vendored from core by hash, and only the rendering is written here.
 
+## Agent cards
+
+An agent can put a card on a person's screen: a recipe, a shopping list, a form with buttons. Android draws two formats with one surface, `OuroComposedSurface`, and both are limited to your catalog: every button is one of your declared actions, with its label, consent class and confirm sheet taken from the catalog, never from the agent.
+
+| Format | Where it is in an MCP tool result | Draw it |
+|---|---|---|
+| Ouro's composed tree, the source of truth | `structuredContent.ouro` (core's `mcpAppTreeResult`), or `structuredContent.ouro.update` for a change to the card shown (`mcpAppTreeUpdateResult`) | `card.receive(toolResult)` |
+| [A2UI](https://a2ui.org/) v1.0 messages (`createSurface`, `updateComponents`, `updateDataModel`, `deleteSurface`) | `structuredContent.a2ui.messages` (core's A2UI `mcpAppToolResult`) | `card.receive(toolResult)`, or `card.receiveA2UI(messages)` for the problems in A2UI's format |
+
+One catalog serves both: generate it from your actions with core's `ouro-a2ui-catalog.mts catalog` (below). A2UI is an adapter onto Ouro's tree, as on web and Apple ([core's decision](https://github.com/ourostack/ouro-ui-core/blob/main/docs/decisions/2026-11-14-composed-ui-own-tree.md)): `OuroA2UI` (`bot.ouro.ui.hx.composed`) is core's `a2ui.mts` in Kotlin. It validates the messages, resolves them into the composed tree and its data model, and the tree must then pass the same checks as one the agent sends itself.
+
+```kotlin
+val card = rememberOuroComposedState(catalog)
+LaunchedEffect(toolResult) { card.receive(toolResult) }   // structuredContent.ouro or structuredContent.a2ui
+OuroComposedSurface(
+    card,
+    onPress = { press -> runAction(press.action, press.input) },
+    onHandoff = { action, how -> openScreenFor(action) },
+    // A card that came as A2UI sends each press as A2UI's action message instead.
+    onA2UIAction = { message -> val a = message["action"] as Map<*, *>; runAction(a["name"] as String, a["context"] as Map<String, Any?>) },
+)
+```
+
+A tree or a message stream that fails the checks shows one short alert, "This card can't be shown", in place of the card. `card.receiveA2UI(messages)` returns A2UI's problems in A2UI's own error format (`VALIDATION_FAILED` and the rest, with a JSON pointer into the stream), word for word as core writes them, for the agent to correct. CI runs core's 13 A2UI conformance cases and the sample's card in both formats (What CI proves, below).
+
+What's still missing:
+
+- **One A2UI surface per card.** `receiveA2UI` shows the first surface the messages leave, or the one you name; a stream that makes several needs one `OuroComposedState` each.
+- **The whole stream each time.** Pass every message so far, again as more arrive. While the surface is the one the same `createSurface` made, what the person entered stays.
+- **No A2UI functions, themes or other catalogs.** As in core: `callRendererFunction` and `agentFunctionResponse` are refused (agents act through their own AppFunctions), a `theme` is refused (your Ouro theme styles the card), and `catalogId` must be your app's catalog, so A2UI's basic catalog isn't drawn.
+- **Only `@accessibility.label` is read.** `description` and `hidden` are checked but not drawn, as in core's resolver; and the surface names buttons and fields by their catalog label and field label, so TalkBack doesn't read the `@label` yet either.
+- **Two limits core doesn't have yet.** An A2UI surface may go at most 24 components deep and resolve to at most 5,000 nodes (`OuroA2UI.MAX_DEPTH`, `MAX_NODES`), as on Windows. A stream names children by id, so nothing else stops a long chain from exhausting the stack, or shared children and templates from multiplying.
+- **Two edges differ from JavaScript.** A component id's letters are checked by Unicode category, so a rare letter the JVM and a browser's engine classify differently could pass on one and fail on the other. A data write past the end of a list writes nothing here; in JavaScript it leaves a gap.
+
 ## No Android devices here: collaborators welcome
 
 The maintainer owns no Android phone or tablet. Everything in this repository is checked on Android emulators in GitHub's CI, never on a real device. If you have Android devices and want to help, open an issue or a pull request from a fork; you're very welcome. Collaborators join as outside collaborators on this public repository or through forks.
@@ -18,11 +52,11 @@ The maintainer owns no Android phone or tablet. Everything in this repository is
 
 | Part | What it is |
 |---|---|
-| `ouro-hx` (`bot.ouro.ui:ouro-hx`) | `OuroTheme` from core's tokens (six themes, light and dark, increased contrast, reduce motion), `OuroButton`, `OuroBadge`, `OuroCard` and `OuroItem` (Apple's first set), and `OuroCheckbox`, `OuroTextField`, `OuroSeparator` and `OuroDescriptionList`. `OuroComposedSurface` draws Ouro's composed tree (below). |
+| `ouro-hx` (`bot.ouro.ui:ouro-hx`) | `OuroTheme` from core's tokens (six themes, light and dark, increased contrast, reduce motion), `OuroButton`, `OuroBadge`, `OuroCard` and `OuroItem` (Apple's first set), and `OuroCheckbox`, `OuroTextField`, `OuroSeparator` and `OuroDescriptionList`. `OuroComposedSurface` draws an agent's card, as Ouro's composed tree or as A2UI messages (`OuroA2UI`, core's adapter ported). |
 | `ouro-actions` (`bot.ouro.ui:ouro-actions`) | The runtime behind every action. A person's press and an agent's AppFunction call take one path. A person-only action refuses agents with core's typed refusal, and a consequential one is refused until the person confirms. |
 | `vendor/core/ouro-actions-android.mts` | Core's Android generator, vendored from its release by SHA-256: action declarations become `OuroActions.kt` (an AppFunction per action an agent may call, none for person-only) and `doors.json` (which door carries which action, and why not). |
-| `vendor/core/composed` | Core's composed-tree catalogs and conformance cases. The catalog comes from the release's dist and the cases from the tag's commit, each pinned by SHA-256 in `core-provenance.json`. `ouro-hx`'s port of core's `composed.mts` (`bot.ouro.ui.hx.composed`) is tested against every tree they hold. |
-| `samples/shop` | A shopping list that declares its actions once and opens both doors. Its `composed` screen draws a card an agent composed (`agent-card.mts`) from the app's catalog. CI runs its X-ray and the card on an emulator. |
+| `vendor/core/composed` | Core's composed-tree catalogs and conformance cases. The catalog comes from the release's dist and the cases from the tag's commit, each pinned by SHA-256 in `core-provenance.json`. `ouro-hx`'s ports of core's `composed.mts` and `a2ui.mts` (`bot.ouro.ui.hx.composed`) are tested against every case they hold. |
+| `samples/shop` | A shopping list that declares its actions once and opens both doors. Its `composed` screen draws a card an agent composed (`agent-card.mts`) from the app's catalog, and its `a2ui` screen the same card arriving as A2UI messages. CI runs its X-ray and both cards on an emulator. |
 
 ## Use it
 
@@ -77,16 +111,16 @@ What the surface does:
 
 Limits:
 
-- Android reads no A2UI messages: send Ouro's tree (`structuredContent.ouro`), not an A2UI stream (`structuredContent.a2ui`). `OuroComposed.read` refuses an A2UI result and says so.
+- A2UI has its own limits, in Agent cards above. `OuroComposed.read` reads only Ouro's tree; `OuroComposedState.receive` takes either.
 - Android refuses a tree nested more than 100 components deep, and JSON nested more than 512 levels, so a forged one can't exhaust the stack. Core sets no such limit; no screen comes near it.
 - The default image loader fetches only https URLs, and your app needs the INTERNET permission. Pass `image` to use your own loader.
 - Like everything here, it is checked on the CI emulator only, never on a device.
 
 ## What CI proves
 
-- **build:** `ouro-actions`' runtime tests, and core's claims for every component in Robolectric. The claims are names and roles in the semantics tree, 48 dp touch targets, reduced motion, text that reflows at 200%, and contrast in all six themes with pixels sampled. It also checks the snapshots in light, dark, increased contrast and 200% text.
-- **emulator:** the sample on an Android 17 emulator, Google's automated-test image (ATD). The X-ray compares what Android indexed against the declarations. The composed card's buttons are checked as the declared actions: add runs the same handler, share runs only after the person confirms, and place order hands off without ordering. Then CI photographs each screen.
-- **generated:** the vendored core files match their release by SHA-256 (the dist's manifest, or the tag's commit for files the dist doesn't carry), the sample's generated Kotlin and composed catalog match its declarations, and its agent card passes core's validator.
+- **build:** `ouro-actions`' runtime tests; the A2UI adapter against core's 13 A2UI conformance cases, each giving exactly its expected trees or problems; and core's claims for every component in Robolectric. The claims are names and roles in the semantics tree, 48 dp touch targets, reduced motion, text that reflows at 200%, and contrast in all six themes with pixels sampled. It also checks the snapshots in light, dark, increased contrast and 200% text.
+- **emulator:** the sample on an Android 17 emulator, Google's automated-test image (ATD). The X-ray compares what Android indexed against the declarations. The composed card's buttons are checked as the declared actions: add runs the same handler, share runs only after the person confirms, and place order hands off without ordering. The same card arriving as A2UI messages is checked the same way, and its add sends A2UI's action message. Then CI photographs each screen.
+- **generated:** the vendored core files match their release by SHA-256 (the dist's manifest, or the tag's commit for files the dist doesn't carry), the sample's generated Kotlin and composed catalog match its declarations, and its agent card, in both formats, passes core's validators.
 
 ## License
 
