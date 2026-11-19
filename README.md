@@ -41,7 +41,7 @@ What's still missing:
 - **The whole stream each time.** Pass every message so far, again as more arrive. While the surface is the one the same `createSurface` made, what the person entered stays.
 - **No A2UI functions, themes or other catalogs.** As in core: `callRendererFunction` and `agentFunctionResponse` are refused (agents act through their own AppFunctions), a `theme` is refused (your Ouro theme styles the card), and `catalogId` must be your app's catalog, so A2UI's basic catalog isn't drawn.
 - **Only `@accessibility.label` is read.** `description` and `hidden` are checked but not drawn, as in core's resolver; and the surface names buttons and fields by their catalog label and field label, so TalkBack doesn't read the `@label` yet either.
-- **Limits core doesn't have yet.** An A2UI surface may go at most 24 components deep, resolve to at most 5,000 nodes, and copy at most a million characters out of its data (`OuroA2UI.MAX_DEPTH`, `MAX_NODES`, `MAX_SIZE`), as on Windows. A stream names children by id, so nothing else stops a long chain from exhausting the stack, or shared children and templates from multiplying a large data model past what the app's memory holds.
+- **Limits core doesn't have yet.** An A2UI surface may go at most 24 components deep, resolve to at most 5,000 nodes, and copy at most a million characters out of its data (`OuroA2UI.MAX_DEPTH`, `MAX_NODES`, `MAX_SIZE`), as on Windows; core may adopt them ([ouro-ui-core#100](https://github.com/ourostack/ouro-ui-core/issues/100)). A stream names children by id, so nothing else stops a long chain from exhausting the stack, or shared children and templates from multiplying a large data model past what the app's memory holds.
 - **Two edges differ from JavaScript.** A component id's letters are checked by Unicode category, so a rare letter the JVM and a browser's engine classify differently could pass on one and fail on the other. A data write past the end of a list writes nothing here; in JavaScript it leaves a gap.
 
 ## No Android devices here: collaborators welcome
@@ -69,7 +69,7 @@ dependencyResolutionManagement {
     }
 }
 // build.gradle.kts
-dependencies { implementation("bot.ouro.ui:ouro-hx:0.3.0") }
+dependencies { implementation("bot.ouro.ui:ouro-hx:0.4.0") }
 ```
 
 ```kotlin
