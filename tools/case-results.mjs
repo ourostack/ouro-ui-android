@@ -17,7 +17,7 @@ export function caseTable(rows) {
 }
 
 if (process.argv[1] === new URL(import.meta.url).pathname) {
-  const rows = caseRows(readFileSync(process.argv[2], "utf8"));
+  const rows = caseRows(process.argv.slice(2).map((f) => readFileSync(f, "utf8")).join("\n"));
   process.stdout.write(caseTable(rows));
   if (rows.some((r) => !r.passed)) process.exitCode = 1;
 }
