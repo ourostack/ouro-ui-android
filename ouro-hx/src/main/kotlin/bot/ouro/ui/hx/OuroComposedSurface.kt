@@ -325,8 +325,8 @@ fun OuroComposedSurface(
     modifier: Modifier = Modifier,
     label: ((LabelContext) -> String?)? = null,
     image: OuroComposedImage = { url, description, m -> OuroRemoteImage(url, description, m) },
-    onRefused: (List<TreeProblem>) -> Unit = {},
     onA2UIAction: (suspend (Map<String, Any?>) -> Unit)? = null,
+    onRefused: (List<TreeProblem>) -> Unit = {},
 ) {
     val problems = state.problems
     if (problems.isNotEmpty()) {

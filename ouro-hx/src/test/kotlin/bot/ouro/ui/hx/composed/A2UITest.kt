@@ -203,6 +203,13 @@ class A2UITest {
         val wide = stream(20) { i -> if (i == 19) emptyList() else listOf("c${i + 1}", "c${i + 1}") }
         assertEquals(emptyList<A2UIProblem>(), OuroA2UI.validateMessages(app, wide))
         assertEquals("Surface s resolves to more than 5000 components; show fewer, or fewer list items.", OuroA2UI.resolveMessages(app, wide).problems.single().message)
+        val big = ComposedJson.parse("""[{ "version": "1.0", "createSurface": { "surfaceId": "s", "catalogId": "${app.catalogId}", "dataModel": { "rows": [] }, "components": [
+            { "id": "root", "component": "Stack", "children": { "componentId": "row", "path": "/rows" } },
+            { "id": "row", "component": "List", "items": { "@path": "/big" } }] } }]""") as List<Any?>
+        @Suppress("UNCHECKED_CAST")
+        val model = ((big[0] as Map<String, Any?>)["createSurface"] as MutableMap<String, Any?>)
+        model["dataModel"] = mapOf("rows" to List(2000) { it.toLong() }, "big" to List(1000) { "item" })
+        assertEquals("Surface s resolves to more than 1000000 characters of data; show less of it, or fewer list items.", OuroA2UI.resolveMessages(app, big).problems.single().message)
     }
 
     @Test

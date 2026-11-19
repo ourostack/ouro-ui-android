@@ -80,6 +80,14 @@ object OuroA2UI {
      */
     const val MAX_NODES = 5000
 
+    /**
+     * How much one surface may copy out of its data model and its messages: each value its tree shows or sends costs its
+     * text's length plus one, and a list or object one more than what it holds. A value bound to the data model is
+     * copied into every node that shows it, so a template over a long list multiplies it; past this the stream is
+     * refused, so no stream can exhaust memory.
+     */
+    const val MAX_SIZE = 1_000_000
+
     private const val FAILED = "VALIDATION_FAILED"
     private const val FUNCTION_CALL = "INVALID_FUNCTION_CALL"
     private const val INTEGRITY = "INTEGRITY_ERROR"
@@ -488,7 +496,7 @@ object OuroA2UI {
 
     private fun value(data: Any?, scope: String, v: Any?): Any? = if (OuroComposed.isBinding(v)) OuroComposed.getPointer(data, scoped(scope, pathOf(v))) else v
 
-    private class TooManyNodes : RuntimeException()
+    private class TooBig(override val message: String) : RuntimeException(message)
 
     /**
      * Every surface a stream leaves, resolved into Ouro's composed tree (core's `resolveMessages`), or only the
@@ -504,8 +512,8 @@ object OuroA2UI {
             val surface = s as Surface
             val tree = try {
                 resolveSurface(catalog, surface, label)
-            } catch (_: TooManyNodes) {
-                return A2UIResolved(emptyList(), listOf(A2UIProblem(FAILED, "", "Surface $id resolves to more than $MAX_NODES components; show fewer, or fewer list items.", id)))
+            } catch (big: TooBig) {
+                return A2UIResolved(emptyList(), listOf(A2UIProblem(FAILED, "", "Surface $id ${big.message}", id)))
             }
             surfaces += A2UISurface(id, tree, surface.data)
         }
@@ -516,9 +524,13 @@ object OuroA2UI {
         val root = surface.components["root"] ?: return null
         val data = surface.data
         var nodes = 0
+        val size = Size()
+
+        // A value the tree copies, charged against the surface's size before it is copied.
+        fun take(v: Any?): Any? = v.also { size.charge(it) }
 
         fun node(comp: Map<*, *>, scope: String): LinkedHashMap<String, Any?> {
-            if (++nodes > MAX_NODES) throw TooManyNodes()
+            if (++nodes > MAX_NODES) throw TooBig("resolves to more than $MAX_NODES components; show fewer, or fewer list items.")
             val name = comp["component"] as String
             val spec = cat.components.getValue(name)
             val props = LinkedHashMap<String, Any?>()
@@ -527,17 +539,17 @@ object OuroA2UI {
                 val given = comp.containsKey(key)
                 val raw = comp[key]
                 when (p.type.kind) {
-                    "string" -> if (given || p.required) props[key] = text(if (given) value(data, scope, raw) else null)
-                    "strings" -> props[key] = (value(data, scope, raw) as? List<*>)?.map { text(it) } ?: emptyList<String>()
+                    "string" -> if (given || p.required) props[key] = text(if (given) take(value(data, scope, raw)) else null)
+                    "strings" -> props[key] = (take(value(data, scope, raw)) as? List<*>)?.map { text(it) } ?: emptyList<String>()
                     "boolean" -> props[key] = if (given) value(data, scope, raw) == true else p.type.default == true
                     "enum" -> props[key] = raw as? String ?: p.type.default
                     "level" -> props[key] = if (raw is Number) jsCopy(raw) else p.type.default
                     "terms" -> {
                         val bound = OuroComposed.isBinding(raw)
                         val base = if (bound) scoped(scope, pathOf(raw)) else scope
-                        props[key] = (value(data, scope, raw) as? List<*>)?.mapIndexed { i, it ->
+                        props[key] = (take(value(data, scope, raw)) as? List<*>)?.mapIndexed { i, it ->
                             val at = if (bound) "$base/$i" else scope
-                            linkedMapOf<String, Any?>("term" to text(value(data, at, (it as? Map<*, *>)?.get("term"))), "detail" to text(value(data, at, (it as? Map<*, *>)?.get("detail"))))
+                            linkedMapOf<String, Any?>("term" to text(take(value(data, at, (it as? Map<*, *>)?.get("term")))), "detail" to text(take(value(data, at, (it as? Map<*, *>)?.get("detail")))))
                         } ?: emptyList<Any?>()
                     }
                     "children" -> when (raw) {
@@ -558,17 +570,37 @@ object OuroA2UI {
                 val input = LinkedHashMap<String, Any?>()
                 val prepared = comp["input"]
                 if (cat.actions.getValue(id).personOnly == null && prepared is Map<*, *>) {
-                    for ((k, v) in jsEntries(prepared)) input[k] = if (OuroComposed.isBinding(v)) linkedMapOf<String, Any?>("@path" to absolute(scoped(scope, pathOf(v)))) else jsCopy(v)
+                    for ((k, v) in jsEntries(prepared)) input[k] = if (OuroComposed.isBinding(v)) linkedMapOf<String, Any?>("@path" to absolute(scoped(scope, pathOf(v)))) else jsCopy(take(v))
                 }
                 props["action"] = id
                 props["input"] = input
             }
             val accessibility = comp["@accessibility"]
-            if (accessibility is Map<*, *> && accessibility.containsKey("label")) props["@label"] = text(value(data, scope, accessibility["label"]))
+            if (accessibility is Map<*, *> && accessibility.containsKey("label")) props["@label"] = text(take(value(data, scope, accessibility["label"])))
             return linkedMapOf<String, Any?>("id" to OuroComposed.asText(comp["id"]), "component" to name, "props" to props, "children" to children)
         }
 
-        return live(cat, node(root, ""), data, label)
+        return live(cat, node(root, ""), data, label, size)
+    }
+
+    // What a surface has copied so far, against MAX_SIZE. A value is walked only as far as the budget allows, so the
+    // walk itself stays bounded.
+    private class Size {
+        private var left = MAX_SIZE
+
+        fun charge(v: Any?) {
+            val todo = ArrayList<Any?>().apply { add(v) }
+            while (todo.isNotEmpty()) {
+                val x = todo.removeAt(todo.lastIndex)
+                left -= 1 + when (x) {
+                    is String -> x.length
+                    is Map<*, *> -> x.entries.sumOf { (k, y) -> todo += y; k.toString().length + 1 }
+                    is List<*> -> x.size.also { todo.addAll(x) }
+                    else -> 0
+                }
+                if (left < 0) throw TooBig("resolves to more than $MAX_SIZE characters of data; show less of it, or fewer list items.")
+            }
+        }
     }
 
     /**
@@ -576,7 +608,7 @@ object OuroA2UI {
      * one bound to a field the person fills in stays bound, so a press sends their answer ([OuroComposed.resolveButton]).
      */
     @Suppress("UNCHECKED_CAST")
-    private fun live(cat: ComposedCatalog, tree: LinkedHashMap<String, Any?>, data: Any?, label: ((LabelContext) -> String?)?): Map<String, Any?> {
+    private fun live(cat: ComposedCatalog, tree: LinkedHashMap<String, Any?>, data: Any?, label: ((LabelContext) -> String?)?, size: Size): Map<String, Any?> {
         val written = HashSet<String>()
         fun collect(n: Map<String, Any?>) {
             val value = (n["props"] as Map<String, Any?>)["value"]
@@ -586,7 +618,7 @@ object OuroA2UI {
         collect(tree)
         // A value read from the data is a value: one shaped like a binding is sent as its text, never followed.
         fun read(p: String): Any? {
-            val v = OuroComposed.getPointer(data, p)
+            val v = OuroComposed.getPointer(data, p).also { size.charge(it) }
             return if (OuroComposed.isBinding(v)) text(v) else jsCopy(v)
         }
         fun fix(n: LinkedHashMap<String, Any?>) {
