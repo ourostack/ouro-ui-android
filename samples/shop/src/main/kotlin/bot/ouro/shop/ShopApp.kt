@@ -6,8 +6,10 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import bot.ouro.shop.actions.AddShoppingListItem
 import bot.ouro.shop.actions.AddShoppingListItemOutput
+import bot.ouro.shop.actions.OuroActions
 import bot.ouro.shop.actions.PlaceGroceryOrder
 import bot.ouro.shop.actions.ShareShoppingList
+import bot.ouro.ui.actions.OuroConfirm
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -31,8 +33,8 @@ object Shop {
         }
         ShareShoppingList.perform = { input -> withContext(Dispatchers.Main) { sharedWith += input.with } }
         PlaceGroceryOrder.perform = { withContext(Dispatchers.Main) { ordered.value = true } }
-        // ShareShoppingList.confirm stays unset: an agent's share is refused until the app asks the person
-        // (a PendingIntent confirmation is ouro-ui-android's next step).
+        // ShareShoppingList.confirm stays unset here: OuroConfirm.install (ShopApp.onCreate) gives it the built-in
+        // confirmation, which asks the person before an agent's share runs. Set confirm yourself to ask another way.
     }
 }
 
@@ -40,5 +42,6 @@ class ShopApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Shop.bind()
+        OuroConfirm.install(this, OuroActions.set)
     }
 }

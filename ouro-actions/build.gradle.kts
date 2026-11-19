@@ -13,6 +13,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    testOptions { unitTests { isIncludeAndroidResources = true } }
     publishing { singleVariant("release") { withSourcesJar() } }
 }
 
@@ -20,6 +21,8 @@ dependencies {
     api(libs.androidx.appfunctions)
     api(libs.kotlinx.coroutines.android)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
 }
 
@@ -32,7 +35,7 @@ publishing {
             afterEvaluate { from(components["release"]) }
             pom {
                 name.set("Ouro Actions for Android")
-                description.set("The runtime behind Ouro UI's actions on Android: a person's press and an agent's AppFunction call take one path, and person-only actions refuse agents.")
+                description.set("The runtime behind Ouro UI's actions on Android: a person's press and an agent's AppFunction call take one path, person-only actions refuse agents, and a consequential action asks the person first, with a built-in confirmation.")
                 url.set("https://github.com/ourostack/ouro-ui-android")
                 licenses { license { name.set("MIT"); url.set("https://opensource.org/licenses/MIT") } }
             }

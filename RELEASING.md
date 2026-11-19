@@ -4,8 +4,8 @@ Releases are tags `vX.Y.Z` on `main`, published as GitHub releases by `.github/w
 
 1. Merge everything for the release through pull requests, and wait for `main`'s CI to pass, `emulator` included.
    That job is the proof on Android: the X-ray on an Android 17 emulator (what AppFunctions Android indexed, the
-   buttons on screen, an agent's call through the same handler a person presses, the consequential and person-only
-   refusals), and pictures of each screen. The `build` job proves core's claims for every component and checks the
+   buttons on screen, an agent's call through the same handler a person presses, the consequential action's
+   confirmation and the person-only refusal), and pictures of each screen. The `build` job proves core's claims for every component and checks the
    snapshots in light, dark, increased contrast and 200% text.
 2. In a pull request, set `ouro.version` in `gradle.properties` to the new version and write the notes in
    `docs/releases/vX.Y.Z.md`.

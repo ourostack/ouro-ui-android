@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Lets the confirmation notification show on Android 13 and later. The app still asks the person for it (README). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application>
+        <!-- Where the person answers an agent's consequential call. Not exported: only the app's own notification and
+             its own foreground launch can open it, and each opens it for one pending id. -->
+        <activity
+            android:name="bot.ouro.ui.actions.OuroConfirmActivity"
+            android:exported="false"
+            android:theme="@style/OuroConfirmTheme" />
+    </application>
+</manifest>
