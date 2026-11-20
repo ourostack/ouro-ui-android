@@ -30,7 +30,7 @@ class FormCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("checkbox", "text-field", "switch", "select")
+        private val components = listOf("checkbox", "text-field", "switch", "select", "field")
 
         private fun cases(name: String) = JSONObject(File(dir, "$name.spec.json").readText()).getJSONArray("cases").let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
 
@@ -104,6 +104,11 @@ class FormCaseTest(private val id: String) {
                     props.getString("label"), value = text("value"), onValueChange = {}, options = COURSES,
                     placeholder = text("placeholder"), description = text("description"), error = text("error"), required = props.optBoolean("required"),
                 )
+            })
+            "field" -> ({
+                OuroField(
+                    props.getString("label"), description = text("description"), error = text("error"), required = props.optBoolean("required"),
+                ) { m, on -> FieldTextBox(m, on) }
             })
             else -> error("no renderer for $name. Fix: add one to FormCaseTest.")
         }
