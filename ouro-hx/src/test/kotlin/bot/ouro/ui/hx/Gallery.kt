@@ -131,6 +131,16 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroTextField("Serves", value = "4", onValueChange = {}, Modifier.testTag("text-field-large"), size = OuroTextFieldSize.Lg)
                     }
                 }
+                if (only == null || only == "switch") {
+                    Column(Modifier.testTag("gallery-switch"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OuroSwitch(if (long) LONG else "Wi-Fi", checked = true, onCheckedChange = {}, Modifier.testTag("switch-case-wifi"))
+                        OuroSwitch(
+                            if (long) LONG else "Nightly backups", checked = false, onCheckedChange = {}, Modifier.testTag("switch-case-backups"),
+                            required = true, description = if (long) LONG else "At 2 a.m.",
+                        )
+                        OuroSwitch("Notifications", checked = true, onCheckedChange = {}, Modifier.testTag("switch-error"), error = "Turn this on to continue.")
+                    }
+                }
                 if (only == null || only == "separator") {
                     Column(Modifier.testTag("gallery-separator"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OuroSeparator(Modifier.testTag("separator-line"))
