@@ -39,7 +39,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -76,6 +76,7 @@ class ClaimsTest {
         "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.contains(SemanticsActions.OnClick) }
         "dialog", "sheet", "confirm-dialog" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
         "tabs" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Tab }
+        "tab-bar" -> n.within().filter { it.config.contains(SemanticsActions.OnClick) }
         else -> listOf(n)
     }
 
@@ -128,6 +129,16 @@ class ClaimsTest {
                         x.config.contains(SemanticsActions.OnClick) && (x.config.contains(SemanticsProperties.Focused) || x.config.contains(SemanticsProperties.Disabled)) && x.name().isNotBlank() && x.config.contains(SemanticsProperties.Selected)
                     } && tabs.count { it.config.getOrNull(SemanticsProperties.Selected) == true } == 1
                 }
+            // One group named by its label: a Tab per item, named by its label, one of them selected, then the accessory, a button named by its label.
+            "tab-bar" -> c.contains(SemanticsProperties.SelectableGroup) && !c.getOrNull(SemanticsProperties.ContentDescription).isNullOrEmpty() &&
+                controls(kind, n).let { items ->
+                    val tabs = items.filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Tab }
+                    val rest = items - tabs.toSet()
+                    tabs.size in 2..5 && items.size == n.children.size && rest.size <= 1 && tabs.all { x ->
+                        x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && x.config.contains(SemanticsProperties.Selected)
+                    } && rest.all { x -> x.config.getOrNull(SemanticsProperties.Role) == Role.Button && x.name().isNotBlank() && x.config.contains(SemanticsProperties.Focused) } &&
+                        tabs.count { it.config.getOrNull(SemanticsProperties.Selected) == true } <= 1
+                }
             else -> false
         }
     }
@@ -142,7 +153,8 @@ class ClaimsTest {
     /** The colour pairs each component's words sit on, from its report. */
     private fun pairs(r: Map<String, String>): List<Triple<String, String, String>> {
         val behind = r["behind"] ?: r["surface"]!!
-        return listOf("label", "title", "text", "description", "error", "term", "details", "selected", "unselected").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } }
+        return listOf("label", "title", "text", "description", "error", "term", "details", "selected", "unselected").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } } +
+            listOfNotNull(r["current"]?.let { c -> r["wash"]?.let { Triple("current", c, it) } })
     }
 
     private fun nameSpoken(kind: String): Result {

@@ -3,9 +3,13 @@
 // props and slots are drawn, and the agent tree TalkBack and agents read must be the one the case gives.
 package bot.ouro.ui.hx
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -13,6 +17,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,7 +37,7 @@ class ComponentCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("tabs")
+        private val components = listOf("tabs", "tab-bar")
 
         private fun cases(name: String) = JSONObject(File(dir, "$name.spec.json").readText()).getJSONArray("cases").let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
 
@@ -69,7 +74,7 @@ class ComponentCaseTest(private val id: String) {
         val props = case.getJSONObject("props")
         val slots = case.getJSONObject("slots")
         val pressed = mutableListOf<String>()
-        var value by mutableStateOf(props.optString("value"))
+        var value by mutableStateOf(props.optString("value", props.optString("current")).lowercase())
         when (name) {
             "tabs" -> {
                 val tabs = slots.getString("items").split("; ").map { s -> OuroTab(s.removeSuffix(" (disabled)").lowercase(), s.removeSuffix(" (disabled)"), s.endsWith(" (disabled)")) }
@@ -80,20 +85,38 @@ class ComponentCaseTest(private val id: String) {
                     }
                 }
             }
+            "tab-bar" -> {
+                val icon: @Composable () -> Unit = { androidx.compose.foundation.layout.Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
+                val items = slots.getString("items").split("; ").map { OuroBarItem(it, icon) }
+                val accessory = if (slots.has("accessory")) OuroBarItem(slots.getString("accessory"), icon) else null
+                rule.setContent {
+                    OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                        OuroTabBar(props.getString("label"), items.firstOrNull { it.label.lowercase() == value }?.label, { pressed += it.lowercase(); if (it != accessory?.label) value = it.lowercase() }, items, accessory = accessory)
+                    }
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ComponentCaseTest.")
         }
         val group = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
         assertEquals(id, case.getJSONObject("agent").toString(), agentTree(group).toString())
+        val before0 = value
         for (child in group.children) {
             val selected = child.config.getOrNull(SemanticsProperties.Selected)
-            assertEquals("$id ${child.words()} selected", child.words().lowercase() == props.getString("value"), selected)
+            // A tab bar's accessory is a button, which is never selected.
+            if (selected == null && slots.optString("accessory") == child.words()) continue
+            assertEquals("$id ${child.words()} selected", child.words().lowercase() == before0, selected)
         }
         val before = value
         for ((i, child) in group.children.withIndex()) {
             val disabled = child.config.contains(SemanticsProperties.Disabled)
             val matcher = SemanticsMatcher("child $i") { n -> n.id == child.id }
             pressed.clear()
-            if (!disabled && child.words().lowercase() != before) {
+            val accessoryChild = slots.optString("accessory") == child.words()
+            if (!disabled && accessoryChild) {
+                rule.onNode(matcher).performClick()
+                rule.waitForIdle()
+                assertEquals("$id pressing ${child.words()}", listOf(child.words().lowercase()), pressed)
+            } else if (!disabled && child.words().lowercase() != before) {
                 rule.onNode(matcher).performClick()
                 rule.waitForIdle()
                 assertEquals("$id pressing ${child.words()}", listOf(child.words().lowercase()), pressed)
