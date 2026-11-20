@@ -26,7 +26,7 @@ class SnapshotTest {
     @Test
     fun components_in_light_dark_increased_contrast_and_large_text() {
         var setting by mutableStateOf(LIGHT)
-        rule.setContent { Gallery(setting) }
+        rule.setContent { Gallery(setting, overlays = false) }
         for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
             setting = s
             rule.waitForIdle()
@@ -63,7 +63,7 @@ class SnapshotTest {
     @Test
     fun every_theme() {
         var setting by mutableStateOf(LIGHT)
-        rule.setContent { Gallery(setting) }
+        rule.setContent { Gallery(setting, overlays = false) }
         for (theme in bot.ouro.ui.hx.tokens.OuroThemeName.entries) for (dark in listOf(false, true)) {
             setting = Setting("${theme.id}-${if (dark) "dark" else "light"}", theme = theme, dark = dark)
             rule.waitForIdle()

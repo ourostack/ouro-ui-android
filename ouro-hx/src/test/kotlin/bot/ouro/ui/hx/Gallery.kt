@@ -54,7 +54,7 @@ const val LONG = "Add everything from this week's recipes to the list"
 /** Every component the kit ships, in every tone and variant and in each of core's conformance cases. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reopen: Int = 0) {
+fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reopen: Int = 0, overlays: Boolean = true) {
     val density = LocalDensity.current
     OuroTheme(setting.theme, dark = setting.dark, increasedContrast = setting.increasedContrast, reduceMotion = setting.reduceMotion) {
         CompositionLocalProvider(LocalDensity provides Density(density.density, setting.fontScale)) {
@@ -136,7 +136,7 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroSeparator(Modifier.testTag("separator-success"), tone = OuroTone.Success)
                     }
                 }
-                if (only == "dialog") {
+                if (only == "dialog" || (only == null && overlays)) {
                     Column(Modifier.testTag("gallery-dialog"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         var edit by remember(reopen) { mutableStateOf(true) }
                         if (edit) OuroDialogPanel(
@@ -148,7 +148,7 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         if (filters) OuroDialogPanel("Filters", true, null, "Close", { filters = false }, Modifier.testTag("dialog-case-hidden-title"), content = { GalleryText("Show only vegetarian recipes.") })
                     }
                 }
-                if (only == "sheet") {
+                if (only == "sheet" || (only == null && overlays)) {
                     Column(Modifier.testTag("gallery-sheet"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         var save by remember(reopen) { mutableStateOf(true) }
                         if (save) OuroSheetPanel(
@@ -159,7 +159,7 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         if (beside) OuroSheetPanel("Notes", false, null, "Close", { beside = false }, OuroSide.Right, Modifier.testTag("sheet-case-beside-page"), content = { GalleryText("Keep these next to the recipe.") })
                     }
                 }
-                if (only == "confirm-dialog") {
+                if (only == "confirm-dialog" || (only == null && overlays)) {
                     Column(Modifier.testTag("gallery-confirm-dialog"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         OuroConfirmPanel(if (long) LONG else "Delete recipe?", if (long) LONG else "This can't be undone.", "Delete", "Cancel", OuroTone.Destructive, false, {}, {}, Modifier.testTag("confirm-dialog-case-delete-recipe"))
                         OuroConfirmPanel("Share shopping list", "Share your list with this person? They will be able to see it and change it.", "Share", "Cancel", OuroTone.Primary, false, {}, {}, Modifier.testTag("confirm-dialog-case-consequential-action"))
