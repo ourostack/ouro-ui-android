@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -39,7 +40,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "switch")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -72,7 +73,7 @@ class ClaimsTest {
 
     /** The controls a component draws, which a person presses or types into: the node itself, or those inside it. */
     private fun controls(kind: String, n: SemanticsNode): List<SemanticsNode> = when (kind) {
-        "checkbox" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) }
+        "checkbox", "switch" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) }
         "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.contains(SemanticsActions.OnClick) }
         "dialog", "sheet", "confirm-dialog" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
         "tabs" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Tab }
@@ -102,6 +103,15 @@ class ClaimsTest {
                 cs.size == 1 && cs.all { x ->
                     x.config.getOrNull(SemanticsProperties.Role) == Role.Checkbox && x.config.contains(SemanticsActions.OnClick) &&
                         x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x) &&
+                        (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error))
+                }
+            }
+            "switch" -> controls(kind, n).let { cs ->
+                cs.size == 1 && cs.all { x ->
+                    x.config.getOrNull(SemanticsProperties.Role) == Role.Switch && x.config.contains(SemanticsActions.OnClick) &&
+                        x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x) &&
+                        // The state stays On or Off: an error is its own semantics, never the state.
+                        x.config.getOrNull(SemanticsProperties.ToggleableState).let { it == ToggleableState.On || it == ToggleableState.Off } &&
                         (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error))
                 }
             }
