@@ -30,9 +30,22 @@ class SnapshotTest {
         for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
             setting = s
             rule.waitForIdle()
-            for (kind in listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog")) {
+            for (kind in listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list")) {
                 rule.onNodeWithTag("gallery-$kind").captureRoboImage("src/test/snapshots/$kind-${s.id}.png")
             }
+        }
+    }
+
+    @Test
+    fun overlays_in_light_dark_increased_contrast_and_large_text() {
+        var setting by mutableStateOf(LIGHT)
+        var kind by mutableStateOf("dialog")
+        rule.setContent { Gallery(setting, only = kind) }
+        for (k in listOf("dialog", "sheet", "confirm-dialog")) for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
+            kind = k
+            setting = s
+            rule.waitForIdle()
+            rule.onNodeWithTag("gallery-$k").captureRoboImage("src/test/snapshots/$k-${s.id}.png")
         }
     }
 

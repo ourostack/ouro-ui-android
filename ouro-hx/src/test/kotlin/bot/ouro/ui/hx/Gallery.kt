@@ -136,7 +136,7 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroSeparator(Modifier.testTag("separator-success"), tone = OuroTone.Success)
                     }
                 }
-                if (only == null || only == "dialog") {
+                if (only == "dialog") {
                     Column(Modifier.testTag("gallery-dialog"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         var edit by remember(reopen) { mutableStateOf(true) }
                         if (edit) OuroDialogPanel(
@@ -148,7 +148,7 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         if (filters) OuroDialogPanel("Filters", true, null, "Close", { filters = false }, Modifier.testTag("dialog-case-hidden-title"), content = { GalleryText("Show only vegetarian recipes.") })
                     }
                 }
-                if (only == null || only == "sheet") {
+                if (only == "sheet") {
                     Column(Modifier.testTag("gallery-sheet"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         var save by remember(reopen) { mutableStateOf(true) }
                         if (save) OuroSheetPanel(
@@ -159,7 +159,7 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         if (beside) OuroSheetPanel("Notes", false, null, "Close", { beside = false }, OuroSide.Right, Modifier.testTag("sheet-case-beside-page"), content = { GalleryText("Keep these next to the recipe.") })
                     }
                 }
-                if (only == null || only == "confirm-dialog") {
+                if (only == "confirm-dialog") {
                     Column(Modifier.testTag("gallery-confirm-dialog"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         OuroConfirmPanel(if (long) LONG else "Delete recipe?", if (long) LONG else "This can't be undone.", "Delete", "Cancel", OuroTone.Destructive, false, {}, {}, Modifier.testTag("confirm-dialog-case-delete-recipe"))
                         OuroConfirmPanel("Share shopping list", "Share your list with this person? They will be able to see it and change it.", "Share", "Cancel", OuroTone.Primary, false, {}, {}, Modifier.testTag("confirm-dialog-case-consequential-action"))
