@@ -40,7 +40,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "switch")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "switch", "select")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -73,6 +73,7 @@ class ClaimsTest {
 
     /** The controls a component draws, which a person presses or types into: the node itself, or those inside it. */
     private fun controls(kind: String, n: SemanticsNode): List<SemanticsNode> = when (kind) {
+        "select" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.DropdownList }
         "checkbox", "switch" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) }
         "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.contains(SemanticsActions.OnClick) }
         "dialog", "sheet", "confirm-dialog" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
@@ -113,6 +114,14 @@ class ClaimsTest {
                         // The state stays On or Off: an error is its own semantics, never the state.
                         x.config.getOrNull(SemanticsProperties.ToggleableState).let { it == ToggleableState.On || it == ToggleableState.Off } &&
                         (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error))
+                }
+            }
+            // A dropdown named by its label, with the expand action and its chosen words, error and description as its state.
+            "select" -> controls(kind, n).let { cs ->
+                cs.size == 1 && cs.all { x ->
+                    x.config.contains(SemanticsActions.Expand) && x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x) &&
+                        (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error)) &&
+                        (n.report()["hasNotes"] != "true" || x.config.contains(SemanticsProperties.StateDescription))
                 }
             }
             "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) }.let { fields ->
@@ -191,6 +200,14 @@ class ClaimsTest {
     }
 
     private fun motionReduced(kind: String): Result {
+        // A select takes a fill while pressed and never scales, so there is nothing to remove: it holds 1 with animations on and off.
+        if (kind == "select") {
+            val checked = listOf(LIGHT, NO_ANIMATIONS).flatMap { s ->
+                under(s)
+                nodes(kind).map { (it.report()["pressScale"]!!.toFloat() == 1f && it.report()["pressFill"] == "true") to "${it.tag()} ${s.id}: scale ${it.report()["pressScale"]}, fill ${it.report()["pressFill"]}" }
+            }
+            return all(checked, "${kind}s never scale: they fill while pressed, with animations on and off")
+        }
         under(LIGHT)
         val on = nodes(kind).map { (it.report()["pressScale"]!!.toFloat() < 1f) to "${it.tag()} on: ${it.report()["pressScale"]}" }
         under(NO_ANIMATIONS)

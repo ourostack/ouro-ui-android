@@ -131,6 +131,16 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroTextField("Serves", value = "4", onValueChange = {}, Modifier.testTag("text-field-large"), size = OuroTextFieldSize.Lg)
                     }
                 }
+                if (only == null || only == "select") {
+                    Column(Modifier.testTag("gallery-select"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OuroSelect(
+                            "Course", value = null, onValueChange = {}, options = COURSES, modifier = Modifier.testTag("select-case-course"),
+                            placeholder = "Choose a course", required = true, description = if (long) LONG else null,
+                        )
+                        OuroSelect("Course", value = "main", onValueChange = {}, options = COURSES, modifier = Modifier.testTag("select-case-chosen-with-error"), error = if (long) LONG else "Main is full.")
+                        OuroSelect("Course", value = "starter", onValueChange = {}, options = COURSES, modifier = Modifier.testTag("select-hidden-label"), hideLabel = true, description = "Starters come first.")
+                    }
+                }
                 if (only == null || only == "switch") {
                     Column(Modifier.testTag("gallery-switch"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OuroSwitch(if (long) LONG else "Wi-Fi", checked = true, onCheckedChange = {}, Modifier.testTag("switch-case-wifi"))
@@ -256,3 +266,5 @@ fun ComposedGallery(setting: Setting) {
 
 @Composable
 private fun GalleryText(text: String) = BasicText(text, style = TextStyle(color = LocalOuroContentColor.current, fontSize = 14.sp))
+
+internal val COURSES = listOf(OuroSelectOption("starter", "Starter"), OuroSelectOption("main", "Main"))
