@@ -101,7 +101,8 @@ class ClaimsTest {
             "checkbox" -> controls(kind, n).let { cs ->
                 cs.size == 1 && cs.all { x ->
                     x.config.getOrNull(SemanticsProperties.Role) == Role.Checkbox && x.config.contains(SemanticsActions.OnClick) &&
-                        x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x)
+                        x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x) &&
+                        (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error))
                 }
             }
             "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) }.let { fields ->

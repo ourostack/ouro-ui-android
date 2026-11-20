@@ -32,6 +32,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.SpanStyle
@@ -45,7 +47,7 @@ import bot.ouro.ui.hx.tokens.OuroTokens
 /**
  * A box and what checking it means: checked, not checked or mixed. The whole row is the control, at least 48 dp
  * tall. TalkBack names it by its [label] (", required" when [required]), says checked, not checked or mixed, then
- * reads its [error] and [description], which sit under it. [hideLabel] hides the words but keeps them as the name.
+ * reads its [error], which is the checkbox's own error, and its [description], which sits under it. [hideLabel] hides the words but keeps them as the name.
  */
 @Composable
 fun OuroCheckbox(
@@ -98,6 +100,7 @@ fun OuroCheckbox(
                     "behind" to OuroColor.hex(behind),
                     "edge" to OuroColor.hex(if (state == ToggleableState.Off) edge else fill),
                     "required" to required,
+                    "hasError" to (error != null),
                     "pressScale" to pressScale,
                 )
             },
@@ -107,8 +110,11 @@ fun OuroCheckbox(
             Modifier
                 .sizeIn(minWidth = OuroMinTarget, minHeight = OuroMinTarget)
                 .triStateToggleable(state = state, interactionSource = interaction, indication = null, enabled = enabled, role = Role.Checkbox) { onCheckedChange(!checked || indeterminate) }
-                .semantics(mergeDescendants = true) { contentDescription = name },
-            // The error and description are read next, as their own words: TalkBack doesn't say a toggle's error.
+                .semantics(mergeDescendants = true) {
+                    contentDescription = name
+                    if (error != null) this.error(error)
+                },
+            // The error is the toggle's own error semantics; the description is read next, as its own words.
             horizontalArrangement = Arrangement.spacedBy(12.dp, if (hideLabel) Alignment.CenterHorizontally else Alignment.Start),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -145,7 +151,7 @@ fun OuroCheckbox(
                 )
             }
         }
-        if (error != null) BasicText(error, Modifier.padding(start = 32.dp), style = TextStyle(color = errorColor, fontSize = 14.sp, lineHeight = 20.sp))
+        if (error != null) BasicText(error, Modifier.padding(start = 32.dp).semantics { hideFromAccessibility() }, style = TextStyle(color = errorColor, fontSize = 14.sp, lineHeight = 20.sp))
         if (description != null) BasicText(description, Modifier.padding(start = 32.dp), style = TextStyle(color = descriptionColor, fontSize = 14.sp, lineHeight = 20.sp))
     }
 }
