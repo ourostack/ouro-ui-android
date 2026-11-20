@@ -1,6 +1,10 @@
 package bot.ouro.ui.hx
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -151,6 +155,16 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroSwitch("Notifications", checked = true, onCheckedChange = {}, Modifier.testTag("switch-error"), error = "Turn this on to continue.")
                     }
                 }
+                if (only == null || only == "field") {
+                    Column(Modifier.testTag("gallery-field"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OuroField(
+                            if (long) LONG else "Email", Modifier.testTag("field-case-email"), required = true,
+                            description = if (long) LONG else "We never share it.",
+                        ) { m, on -> FieldTextBox(m, on) }
+                        OuroField("Email", Modifier.testTag("field-case-with-error"), error = if (long) LONG else "Enter an email address.") { m, on -> FieldTextBox(m, on) }
+                        OuroField("Nickname", Modifier.testTag("field-disabled"), enabled = false) { m, on -> FieldTextBox(m, on) }
+                    }
+                }
                 if (only == null || only == "separator") {
                     Column(Modifier.testTag("gallery-separator"), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OuroSeparator(Modifier.testTag("separator-line"))
@@ -268,3 +282,16 @@ fun ComposedGallery(setting: Setting) {
 private fun GalleryText(text: String) = BasicText(text, style = TextStyle(color = LocalOuroContentColor.current, fontSize = 14.sp))
 
 internal val COURSES = listOf(OuroSelectOption("starter", "Starter"), OuroSelectOption("main", "Main"))
+
+/** The one control a field names in its cases: core's "A text box", drawn with a plain edge. */
+@Composable
+internal fun FieldTextBox(modifier: Modifier, enabled: Boolean) {
+    val look = Ouro.look
+    val edge = OuroColor.push(look.colors.input, Ouro.surface, OuroColor.INCREASED_LINE_CONTRAST)
+    val color = OuroColor.readable(look.colors.foreground, Ouro.surface, look.textContrast)
+    androidx.compose.foundation.text.BasicTextField(
+        value = "", onValueChange = {}, enabled = enabled,
+        modifier = modifier.fillMaxWidth().heightIn(min = OuroMinTarget).border(1.dp, edge, RoundedCornerShape(look.radius)).padding(12.dp),
+        textStyle = TextStyle(color = color, fontSize = 16.sp),
+    )
+}

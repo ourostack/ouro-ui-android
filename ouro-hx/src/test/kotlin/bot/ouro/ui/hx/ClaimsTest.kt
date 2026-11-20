@@ -40,7 +40,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "switch", "select")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "switch", "select", "field")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -74,6 +74,7 @@ class ClaimsTest {
     /** The controls a component draws, which a person presses or types into: the node itself, or those inside it. */
     private fun controls(kind: String, n: SemanticsNode): List<SemanticsNode> = when (kind) {
         "select" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.DropdownList }
+        "field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) }
         "checkbox", "switch" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) }
         "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.contains(SemanticsActions.OnClick) }
         "dialog", "sheet", "confirm-dialog" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
@@ -123,6 +124,14 @@ class ClaimsTest {
                         (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error)) &&
                         (n.report()["hasNotes"] != "true" || x.config.contains(SemanticsProperties.StateDescription))
                 }
+            }
+            // The control carries the label, error and description; the drawn words around it say nothing, so nothing is read twice.
+            "field" -> controls(kind, n).let { cs ->
+                cs.size == 1 && cs.all { x ->
+                    x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x) &&
+                        (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error)) &&
+                        (n.report()["hasNotes"] != "true" || x.config.contains(SemanticsProperties.StateDescription))
+                } && n.within().none { it.id != cs[0].id && !it.config.contains(SemanticsActions.SetText) && it.words().isNotBlank() && generateSequence(it) { p -> p.parent }.none { p -> p.id == cs[0].id } }
             }
             "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) }.let { fields ->
                 fields.size == 1 && fields.all { x ->
