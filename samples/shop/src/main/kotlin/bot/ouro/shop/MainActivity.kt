@@ -56,6 +56,7 @@ import bot.ouro.ui.hx.OuroButton
 import bot.ouro.ui.hx.OuroCard
 import bot.ouro.ui.hx.OuroConfirmDialog
 import bot.ouro.ui.hx.OuroDialog
+import bot.ouro.ui.hx.OuroPresentation
 import bot.ouro.ui.hx.OuroSheet
 import bot.ouro.ui.hx.OuroFrame
 import bot.ouro.ui.hx.OuroItem
@@ -117,7 +118,7 @@ private fun OverlaysScreen() {
     OuroButton("Save to cookbook", onPress = { open = "sheet" }, Modifier.testTag("open-sheet"))
     OuroButton("Delete recipe", onPress = { open = "confirm" }, Modifier.testTag("open-confirm"), tone = OuroTone.Destructive)
     BasicText(last, Modifier.testTag("overlay-last"), style = TextStyle(color = Ouro.look.colors.mutedForeground, fontSize = 14.sp))
-    OuroDialog(open == "dialog", onClose = { open = null; last = "Dialog closed: $it" }, title = "Edit recipe", description = "Change the title and the notes.")
+    OuroDialog(open == "dialog", onClose = { open = null; last = "Dialog closed: $it" }, title = "Edit recipe", description = "Change the title and the notes.", presentation = OuroPresentation.Dialog)
     OuroSheet(open == "sheet", onClose = { open = null; last = "Sheet closed: $it" }, title = "Save to cookbook")
     OuroConfirmDialog(open == "confirm", onConfirm = { open = null; last = "Deleted" }, onClose = { open = null; last = "Kept" }, title = "Delete recipe?", confirmLabel = "Delete", description = "This can't be undone.", tone = OuroTone.Destructive)
 }

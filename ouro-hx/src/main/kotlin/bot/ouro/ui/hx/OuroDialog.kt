@@ -44,7 +44,7 @@ fun OuroDialog(
     closeLabel: String = "Close",
     closeOnOutsidePress: Boolean = true,
     presentation: OuroPresentation = OuroPresentation.Auto,
-    size: OuroDialogSize = OuroDialogSize.Md,
+    size: OuroDialogSize = OuroDialogSize.Auto,
     footer: (@Composable () -> Unit)? = null,
     content: (@Composable () -> Unit)? = null,
 ) {

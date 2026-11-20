@@ -72,7 +72,7 @@ class OverlayTest {
     fun a_press_outside_never_closes_the_confirm_dialog() {
         rule.onNodeWithTag("open-confirm").performClick()
         rule.onNodeWithTag("confirm-dialog.cancel").assertIsDisplayed()
-        device.click(device.displayWidth / 2, 20)
+        device.click(device.displayWidth / 2, device.displayHeight * 9 / 10)
         rule.waitForIdle()
         rule.onNodeWithTag("confirm-dialog.cancel").assertIsDisplayed()
     }
