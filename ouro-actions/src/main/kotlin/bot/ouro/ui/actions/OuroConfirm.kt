@@ -36,7 +36,7 @@ data class OuroConfirmation(
     val action: String,
     /** The action's label, such as "Share list". */
     val title: String,
-    /** The action's one sentence. */
+    /** The action's one sentence, or the question its declaration gives as `confirm`. */
     val description: String,
     val rows: List<OuroConfirmRow>,
 ) {
@@ -185,6 +185,9 @@ object OuroConfirm {
      * Gives every consequential action in [actions] that has no `confirm` the built-in confirmation.
      *
      * @param timeoutMs how long the call waits for the person before it is refused. A timeout is a no.
+     * @param confirmTexts the question a declaration gives an action as `confirm`, by action id (core's `doors.json` lists it
+     * under each action's `text`). An action without an entry is asked with its description, which is what core uses when
+     * none is declared, so the person reads the same words the other doors show.
      * @param describe the rows the person reads for an action's input, each a label and a value. Without it, each
      * non-null field of the input is a row, its name as words ("shareWith" is "Share with") and its value as text,
      * except `idempotencyKey`. A release build that renames fields (R8) needs `describe`, or a keep rule for the input classes.
@@ -194,6 +197,7 @@ object OuroConfirm {
         context: Context,
         actions: OuroActionSet,
         timeoutMs: Long = DEFAULT_TIMEOUT_MS,
+        confirmTexts: Map<String, String> = emptyMap(),
         describe: ((OuroAction<*, *>, Any) -> List<OuroConfirmRow>)? = null,
     ) {
         require(timeoutMs > 0) { "[ouro-ui] OuroConfirm: timeoutMs must be positive. Fix: pass OuroConfirm.DEFAULT_TIMEOUT_MS or a number of milliseconds above 0." }
@@ -205,7 +209,7 @@ object OuroConfirm {
             val typed = action as OuroAction<Any, Any>
             typed.confirm = { input ->
                 val rows = describe?.invoke(typed, input) ?: describeInput(input)
-                confirmer.ask(OuroConfirmation(typed.id, typed.label, typed.description, rows))
+                confirmer.ask(OuroConfirmation(typed.id, typed.label, confirmTexts[typed.id] ?: typed.description, rows))
             }
         }
     }

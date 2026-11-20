@@ -1,18 +1,18 @@
 {
-  "coreTag": "v0.21.0",
-  "coreCommit": "d4e9e81336b0a03e0797e0d787f67b78f7369865",
+  "coreTag": "v1.2.0",
+  "coreCommit": "a7fb9ef95d1f9141548aa6070c8d07ed1aea457f",
   "files": {
     "vendor/core/ouro-actions.mts": {
       "from": "dist/actions/ouro-actions.mts",
-      "sha256": "99f9a11a39785a3dba85fd172463e2707c90ed862941c9887e77bb2b9a60a18c"
+      "sha256": "94de3473404e37776d2686785756d08cb42692c444bec1b307efc77001bc5cf4"
     },
     "vendor/core/ouro-actions-android.mts": {
       "from": "dist/actions/ouro-actions-android.mts",
-      "sha256": "3e3da5a8d4cea41ca9f8b4e5fa1cf330a47ac5c13f64bffe94b3d66c5e8cd423"
+      "sha256": "40364c8dab73be0fdb66c93b3065cb8969944da8f59e205056718e23057ae14f"
     },
     "vendor/core/ouro-composed.mts": {
       "from": "dist/composed/ouro-composed.mts",
-      "sha256": "50b1b5c290816f0e9698fa6514eab023df38e11c559921133254cad963aa606a"
+      "sha256": "33d62bd7d35c7f7e63e16861bb7bf9cbab27c3892e7893168cb3dd6c063f1d51"
     },
     "vendor/core/ouro-mcp-app.mts": {
       "from": "dist/composed/ouro-mcp-app.mts",
@@ -20,11 +20,11 @@
     },
     "vendor/core/ouro-a2ui.mts": {
       "from": "dist/a2ui/ouro-a2ui.mts",
-      "sha256": "57bb4038955de4a953bd4d12582caa4223fe8f921b9738e231428ce5100e0e34"
+      "sha256": "e77db180bc0e9b33e4f09543e5c93b79df0246a7b0325260b75ed2361189345b"
     },
     "vendor/core/ouro-a2ui-catalog.mts": {
       "from": "dist/a2ui/ouro-a2ui-catalog.mts",
-      "sha256": "bc241cf9711eb0c019607d7a727a02a4c6c8599eb268b05e2953c52a1ddd36cd"
+      "sha256": "7d4bb33a72ce4d18dd04d1f166639f024006264561477837f4b6e63e6d16bf37"
     },
     "vendor/core/components.claims.json": {
       "from": "dist/hx/components.claims.json",
@@ -68,11 +68,11 @@
     },
     "vendor/core/composed/catalog.json": {
       "from": "dist/hx/a2ui/catalog.json",
-      "sha256": "63114ca8937d25a34cf30bae46a4c6c97dda383aecfa5823daaa325b7d53e267"
+      "sha256": "576ad722f8f19fe2cd2f6f548a5bca726604f20dd514a99c7accffddc14e8f82"
     },
     "vendor/core/composed/recipe.catalog.json": {
       "from": "standard/hx/a2ui/conformance/recipe.catalog.json",
-      "sha256": "adfffa63ae281cc784ed40898a0d098c86d7145b80bd46e1545a9876093747a3"
+      "sha256": "fde5df7ba2fcacc7153cb3a43c050262c094145e7eaaaec4cd213ba3b2fee9fd"
     },
     "vendor/core/composed/cases/action-buttons.json": {
       "from": "standard/hx/a2ui/conformance/cases/action-buttons.json",
@@ -148,7 +148,7 @@
     },
     "ouro-hx/src/main/kotlin/bot/ouro/ui/hx/tokens/OuroTokens.kt": {
       "from": "dist/android/OuroTokens.kt",
-      "sha256": "69a6408ca7c02038d27ff5bc14805a32525321d8c08a2d32d73e6c50a365ccd7"
+      "sha256": "aec619bf4b54dd5a6306b1f5d70f4117f6d967c04f2c3b5439d469961ab157c2"
     }
   }
 }
