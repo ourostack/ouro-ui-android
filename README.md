@@ -104,6 +104,8 @@ What the person sees is the composed card's confirm sheet in platform views: the
 - **Waiting:** the call suspends until the person answers or two minutes pass (`OuroConfirm.DEFAULT_TIMEOUT_MS`; pass `timeoutMs` to change it). Don't, Back, tapping outside, leaving the screen and the timeout all mean no, and no runs nothing. The agent gets AppFunctions' denied error with the reason (`The person said no to Share list.`, or that no one answered in time).
 - **One answer, for one call:** each pending confirmation has a fresh 128-bit random id. The confirmation activity isn't exported, the notification's `PendingIntent` is immutable and single-use, and the screen reads what to show from the pending confirmation under that id, never from the intent. A stale or forged intent shows nothing and answers nothing.
 
+The question under the title is the action's description, or the `confirm` question its declaration gives, which core's `doors.json` lists under each action's `text`; pass it as `confirmTexts = mapOf("share_shopping_list" to "…")` so the person reads the same words the other doors show.
+
 The values come from the call's input: each field that isn't null, its name as words (`shareWith` is "Share with") and its value as text, without `idempotencyKey`. To use your own labels, or to keep them when R8 renames fields, pass `describe`:
 
 ```kotlin
