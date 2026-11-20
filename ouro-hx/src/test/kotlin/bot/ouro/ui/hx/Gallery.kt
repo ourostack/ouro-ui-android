@@ -165,6 +165,20 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroConfirmPanel("Share shopping list", "Share your list with this person? They will be able to see it and change it.", "Share", "Cancel", OuroTone.Primary, false, {}, {}, Modifier.testTag("confirm-dialog-case-consequential-action"))
                     }
                 }
+                if (only == null || only == "tabs") {
+                    Column(Modifier.testTag("gallery-tabs"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroTabs(
+                            if (long) LONG else "Recipe", value = "ingredients", onValueChange = {},
+                            tabs = listOf(OuroTab("ingredients", if (long) LONG else "Ingredients"), OuroTab("method", "Method")), Modifier.testTag("tabs-case-recipe-sections"),
+                            panel = { BasicText("The ingredient list", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)) },
+                        )
+                        OuroTabs(
+                            "Settings", value = "profile", onValueChange = {},
+                            tabs = listOf(OuroTab("profile", "Profile"), OuroTab("billing", if (long) LONG else "Billing", disabled = true)), Modifier.testTag("tabs-case-vertical-with-disabled"),
+                            orientation = OuroOrientation.Vertical,
+                        )
+                    }
+                }
                 if (only == null || only == "description-list") {
                     OuroDescriptionList(
                         listOf(OuroDescriptionItem(if (long) LONG else "Prep time", if (long) LONG else "20 minutes"), OuroDescriptionItem("Serves", "6")),

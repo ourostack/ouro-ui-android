@@ -30,7 +30,7 @@ class SnapshotTest {
         for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
             setting = s
             rule.waitForIdle()
-            for (kind in listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list")) {
+            for (kind in listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "tabs")) {
                 rule.onNodeWithTag("gallery-$kind").captureRoboImage("src/test/snapshots/$kind-${s.id}.png")
             }
         }
