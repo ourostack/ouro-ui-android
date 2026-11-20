@@ -1,10 +1,10 @@
 {
-  "coreTag": "v1.5.0",
-  "coreCommit": "d8f905978eccff7469404af4f78a78f78fc560bf",
+  "coreTag": "v1.6.0",
+  "coreCommit": "bdb114f5fbbefa9ae5eb820ad314998d214981f8",
   "files": {
     "vendor/core/ouro-actions.mts": {
       "from": "dist/actions/ouro-actions.mts",
-      "sha256": "e98d3262f8f206c2ef1cbafb92b805c21bed133a9f2295877ecc2bac73c9dc10"
+      "sha256": "1ed1abf500ecd48612626643aced20953e750f77772828322aab3576fb6136e5"
     },
     "vendor/core/ouro-actions-android.mts": {
       "from": "dist/actions/ouro-actions-android.mts",
@@ -28,7 +28,7 @@
     },
     "vendor/core/components.claims.json": {
       "from": "dist/hx/components.claims.json",
-      "sha256": "9f0531c090e794d7aa6d1633eef6d831b15ed03bcc87c05139609f7c4777aec0"
+      "sha256": "7d0915c065229041e195f043ee2cad7b8a52df7aedcbdcc896c29d5fa616a2da"
     },
     "vendor/core/components/component.schema.json": {
       "from": "dist/hx/components/component.schema.json",
@@ -102,13 +102,29 @@
       "from": "dist/hx/components/confirm-dialog.spec.json",
       "sha256": "0e767248d52f91f9db511543620bdb4345ead2815d5682760bd2d675aa1f5a06"
     },
+    "vendor/core/components/item-group.spec.json": {
+      "from": "dist/hx/components/item-group.spec.json",
+      "sha256": "e0762a485dba134a98873ec9ea9f7b8098ebb883b29f29601840fbe628111e4c"
+    },
+    "vendor/core/components/swipe-actions.spec.json": {
+      "from": "dist/hx/components/swipe-actions.spec.json",
+      "sha256": "04f02d3f6f7b61e0715f12e58d0a5a682d419398e490fc6a68d5f3672fce8af0"
+    },
+    "vendor/core/components/reorderable.spec.json": {
+      "from": "dist/hx/components/reorderable.spec.json",
+      "sha256": "ca5917aa880f61f1172af21a70d37e5f22c7a7c5bced657be19e2ba3b4f01946"
+    },
+    "vendor/core/components/conversation-list.spec.json": {
+      "from": "dist/hx/components/conversation-list.spec.json",
+      "sha256": "50b3b3db3d5f79e71315adfd058ba4a5ea09fc7194e21356dfd5354b1c20c930"
+    },
     "vendor/core/composed/catalog.json": {
       "from": "dist/hx/a2ui/catalog.json",
-      "sha256": "d77f687724ce5cabcc8c82e763deea1de9c7cd6be7e15012219719c5f329c289"
+      "sha256": "dc97281d85eba21d2e74e96cbf11ab1b4905e6f9878f7cbb2b5d05fa72d2f70a"
     },
     "vendor/core/composed/recipe.catalog.json": {
       "from": "standard/hx/a2ui/conformance/recipe.catalog.json",
-      "sha256": "c5bff9d830994efa8847dd8126fcdbbe1cd88837925638968b5b43e2e783b270"
+      "sha256": "6afd05a67dbdee8c0e99854ed2e237ce8141c57a6baf67309bd3a9b42620bfd9"
     },
     "vendor/core/composed/cases/action-buttons.json": {
       "from": "standard/hx/a2ui/conformance/cases/action-buttons.json",
@@ -184,7 +200,7 @@
     },
     "ouro-hx/src/main/kotlin/bot/ouro/ui/hx/tokens/OuroTokens.kt": {
       "from": "dist/android/OuroTokens.kt",
-      "sha256": "f9b2ab38f39219b04a0a3866403509b21b0bb1bbea5cef35dea19f4abc454876"
+      "sha256": "4876c5183e8d835beac88fe160682e29af1f94ecce5842e26f564afb9eee367e"
     }
   }
 }
