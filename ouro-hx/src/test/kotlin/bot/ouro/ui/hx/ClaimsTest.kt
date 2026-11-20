@@ -5,6 +5,7 @@
 package bot.ouro.ui.hx
 
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
@@ -17,6 +18,7 @@ import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.text.TextLayoutResult
 import bot.ouro.ui.hx.tokens.OuroThemeName
 import org.json.JSONObject
@@ -37,7 +39,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -48,6 +50,7 @@ class ClaimsTest {
     private var setting by mutableStateOf(LIGHT)
     private var long by mutableStateOf(false)
     private var only by mutableStateOf<String?>(null)
+    private var reopen by mutableIntStateOf(0)
 
     private fun under(s: Setting, isLong: Boolean = false, just: String? = null) {
         setting = s
@@ -71,6 +74,7 @@ class ClaimsTest {
     private fun controls(kind: String, n: SemanticsNode): List<SemanticsNode> = when (kind) {
         "checkbox" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) }
         "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.contains(SemanticsActions.OnClick) }
+        "dialog", "sheet", "confirm-dialog" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
         else -> listOf(n)
     }
 
@@ -111,8 +115,20 @@ class ClaimsTest {
                 n.within().filter { it.config.isMergingSemanticsOfDescendants }.let { pairs ->
                     pairs.size.toString() == n.report()["pairs"] && pairs.all { (it.config.getOrNull(SemanticsProperties.Text)?.size ?: 0) == 2 && !it.config.contains(SemanticsActions.OnClick) }
                 }
+            "dialog", "sheet" -> overlaySpoken(n) && n.within().any { b ->
+                b.config.getOrNull(SemanticsProperties.Role) == Role.Button && b.config.contains(SemanticsActions.OnClick) &&
+                    b.config.contains(SemanticsProperties.Focused) && b.name() == "Close"
+            } && c.contains(SemanticsActions.Dismiss)
+            "confirm-dialog" -> overlaySpoken(n) && controls(kind, n).map { it.name() }.let { names -> names.size == 2 && names[0] == "Cancel" && names[1].isNotBlank() }
             else -> false
         }
+    }
+
+    /** A pane title, and a heading with words unless the title is hidden. */
+    private fun overlaySpoken(n: SemanticsNode): Boolean {
+        val headings = n.within().filter { it.config.contains(SemanticsProperties.Heading) }
+        val hidden = n.report()["hideTitle"] == "true"
+        return !n.config.getOrNull(SemanticsProperties.PaneTitle).isNullOrBlank() && (hidden || headings.any { it.words().isNotBlank() })
     }
 
     /** The colour pairs each component's words sit on, from its report. */
@@ -212,17 +228,38 @@ class ClaimsTest {
         return all(checks, "$kind word pairs at 4.5:1 (7:1 with increased contrast) in all 6 themes, light and dark, and pixels that match")
     }
 
+    /** Pressing Close takes the panel away, and the panel offers the dismiss action to a screen reader. */
+    private fun dismissReachable(kind: String): Result {
+        under(LIGHT, just = kind)
+        val out = mutableListOf<Pair<Boolean, String>>()
+        val tags = nodes(kind).map { it.tag() }
+        for (tag in tags) {
+            val root = nodes(kind).first { it.tag() == tag }
+            val closeId = root.within().first { it.config.getOrNull(SemanticsProperties.TestTag) == "$kind.close" }.id
+            val offers = root.config.contains(SemanticsActions.Dismiss)
+            rule.onNode(SemanticsMatcher("id=$closeId") { it.id == closeId }).performClick()
+            rule.waitForIdle()
+            val gone = nodes(kind).none { it.tag() == tag }
+            out += (offers && gone) to "$tag: dismiss action $offers, gone after Close $gone"
+            reopen++
+            rule.waitForIdle()
+        }
+        under(LIGHT)
+        return all(out, "$kind panels close from their Close button and offer the dismiss action")
+    }
+
     private val checks: Map<String, (String) -> Result> = mapOf(
         "name.spoken" to ::nameSpoken,
         "target.touch" to ::targetTouch,
         "motion.reduced" to ::motionReduced,
         "text.reflows" to ::textReflows,
         "contrast.text" to ::contrastText,
+        "dismiss.reachable" to ::dismissReachable,
     )
 
     @Test
     fun every_claim_core_makes_for_the_kits_components_passes_on_android() {
-        rule.setContent { Gallery(setting, only = only, long = long) }
+        rule.setContent { Gallery(setting, only = only, long = long, reopen = reopen) }
         val specs = File("../vendor/core/components").listFiles { f -> f.name.endsWith(".spec.json") }!!
             .map { JSONObject(it.readText()) }.filter { it.getString("name") in kit }
         assertTrue("no vendored spec for ${kit - specs.map { it.getString("name") }.toSet()}. Fix: node scripts/provenance.mjs update <core tag>.", specs.size == kit.size)

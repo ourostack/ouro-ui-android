@@ -20,5 +20,6 @@ test("each generated action carries the label, description and agent text core's
 
 test("the built-in confirmation takes the declared question by action id, and falls back to the description", () => {
   const source = readFileSync(new URL("../ouro-actions/src/main/kotlin/bot/ouro/ui/actions/OuroConfirm.kt", import.meta.url), "utf8");
-  assert.match(source, /confirmTexts\[typed\.id\] \?: typed\.description/);
+  assert.match(source, /confirmTexts\[action\.id\] \?: action\.description/);
+  assert.match(source, /confirmText\(typed, confirmTexts\)/);
 });

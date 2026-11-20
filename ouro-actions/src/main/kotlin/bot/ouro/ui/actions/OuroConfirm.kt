@@ -182,6 +182,14 @@ object OuroConfirm {
     internal val broker = OuroConfirmBroker { randomId() }
 
     /**
+     * The question a person is asked before [action] runs: the declared `confirm` in [confirmTexts] (core's `doors.json`
+     * `text`, by action id), else the action's description, which is what core's `actionText()` uses when none is declared.
+     * The built-in confirmation and `OuroConfirmDialog` both word it this way.
+     */
+    fun confirmText(action: OuroAction<*, *>, confirmTexts: Map<String, String> = emptyMap()): String =
+        confirmTexts[action.id] ?: action.description
+
+    /**
      * Gives every consequential action in [actions] that has no `confirm` the built-in confirmation.
      *
      * @param timeoutMs how long the call waits for the person before it is refused. A timeout is a no.
@@ -209,7 +217,7 @@ object OuroConfirm {
             val typed = action as OuroAction<Any, Any>
             typed.confirm = { input ->
                 val rows = describe?.invoke(typed, input) ?: describeInput(input)
-                confirmer.ask(OuroConfirmation(typed.id, typed.label, confirmTexts[typed.id] ?: typed.description, rows))
+                confirmer.ask(OuroConfirmation(typed.id, typed.label, confirmText(typed, confirmTexts), rows))
             }
         }
     }

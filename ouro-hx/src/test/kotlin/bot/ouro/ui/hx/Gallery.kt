@@ -15,6 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -50,7 +54,7 @@ const val LONG = "Add everything from this week's recipes to the list"
 /** Every component the kit ships, in every tone and variant and in each of core's conformance cases. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun Gallery(setting: Setting, only: String? = null, long: Boolean = false) {
+fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reopen: Int = 0) {
     val density = LocalDensity.current
     OuroTheme(setting.theme, dark = setting.dark, increasedContrast = setting.increasedContrast, reduceMotion = setting.reduceMotion) {
         CompositionLocalProvider(LocalDensity provides Density(density.density, setting.fontScale)) {
@@ -132,6 +136,35 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false) {
                         OuroSeparator(Modifier.testTag("separator-success"), tone = OuroTone.Success)
                     }
                 }
+                if (only == null || only == "dialog") {
+                    Column(Modifier.testTag("gallery-dialog"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        var edit by remember(reopen) { mutableStateOf(true) }
+                        if (edit) OuroDialogPanel(
+                            if (long) LONG else "Edit recipe", false, if (long) LONG else "Change the title and the notes.", "Close", { edit = false }, Modifier.testTag("dialog-case-edit-recipe"),
+                            footer = { OuroButton("Save", onPress = {}) },
+                            content = { OuroTextField("Title", value = "Lemon orzo", onValueChange = {}) },
+                        )
+                        var filters by remember(reopen) { mutableStateOf(true) }
+                        if (filters) OuroDialogPanel("Filters", true, null, "Close", { filters = false }, Modifier.testTag("dialog-case-hidden-title"), content = { GalleryText("Show only vegetarian recipes.") })
+                    }
+                }
+                if (only == null || only == "sheet") {
+                    Column(Modifier.testTag("gallery-sheet"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        var save by remember(reopen) { mutableStateOf(true) }
+                        if (save) OuroSheetPanel(
+                            if (long) LONG else "Save to cookbook", false, if (long) LONG else "Pick a cookbook for this recipe.", "Close", { save = false }, OuroSide.Bottom, Modifier.testTag("sheet-case-save-to-cookbook"),
+                            footer = { OuroButton("Save", onPress = {}) },
+                        )
+                        var beside by remember(reopen) { mutableStateOf(true) }
+                        if (beside) OuroSheetPanel("Notes", false, null, "Close", { beside = false }, OuroSide.Right, Modifier.testTag("sheet-case-beside-page"), content = { GalleryText("Keep these next to the recipe.") })
+                    }
+                }
+                if (only == null || only == "confirm-dialog") {
+                    Column(Modifier.testTag("gallery-confirm-dialog"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroConfirmPanel(if (long) LONG else "Delete recipe?", if (long) LONG else "This can't be undone.", "Delete", "Cancel", OuroTone.Destructive, false, {}, {}, Modifier.testTag("confirm-dialog-case-delete-recipe"))
+                        OuroConfirmPanel("Share shopping list", "Share your list with this person? They will be able to see it and change it.", "Share", "Cancel", OuroTone.Primary, false, {}, {}, Modifier.testTag("confirm-dialog-case-consequential-action"))
+                    }
+                }
                 if (only == null || only == "description-list") {
                     OuroDescriptionList(
                         listOf(OuroDescriptionItem(if (long) LONG else "Prep time", if (long) LONG else "20 minutes"), OuroDescriptionItem("Serves", "6")),
@@ -166,3 +199,6 @@ fun ComposedGallery(setting: Setting) {
         }
     }
 }
+
+@Composable
+private fun GalleryText(text: String) = BasicText(text, style = TextStyle(color = LocalOuroContentColor.current, fontSize = 14.sp))
