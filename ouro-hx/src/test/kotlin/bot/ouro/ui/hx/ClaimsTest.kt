@@ -184,7 +184,7 @@ class ClaimsTest {
             // A collection named by its label, each row a collection item; or, with no rows, its message as plain text.
             "item-group" -> if (n.report()["empty"] == "true") role == null && !clickable && !focusable && n.words().isNotBlank()
             else c.contains(SemanticsProperties.CollectionInfo) && (n.report()["labelled"] != "true" || n.name().isNotBlank()) &&
-                n.children.filter { it.config.contains(SemanticsProperties.CollectionItemInfo) }.let { rows ->
+                n.within().drop(1).filter { it.config.contains(SemanticsProperties.CollectionItemInfo) }.let { rows ->
                     rows.isNotEmpty() && rows.size == c[SemanticsProperties.CollectionInfo].rowCount && rows.all { it.rowWords().isNotBlank() }
                 }
             else -> false
