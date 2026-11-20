@@ -90,7 +90,7 @@ class ListCaseTest(private val id: String) {
                 .put("focusable", false)
                 .put("children", org.json.JSONArray(root.children.map { ch ->
                     if (ch.config.getOrNull(SemanticsProperties.Role) == Role.Button) JSONObject().put("role", "button").put("name", ch.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
-                    else JSONObject().put("role", "text").put("name", ch.words())
+                    else JSONObject().put("role", "text").put("name", ch.rowWords())
                 }))
         } else if (root.config.contains(SemanticsProperties.CollectionInfo)) {
             JSONObject().put("role", "group").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
