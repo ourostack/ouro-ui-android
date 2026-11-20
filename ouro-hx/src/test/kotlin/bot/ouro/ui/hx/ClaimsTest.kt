@@ -39,7 +39,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -75,6 +75,7 @@ class ClaimsTest {
         "checkbox" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) }
         "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.contains(SemanticsActions.OnClick) }
         "dialog", "sheet", "confirm-dialog" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
+        "tabs" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Tab }
         else -> listOf(n)
     }
 
@@ -120,6 +121,13 @@ class ClaimsTest {
                     b.config.contains(SemanticsProperties.Focused) && b.name() == "Close"
             } && c.contains(SemanticsActions.Dismiss)
             "confirm-dialog" -> overlaySpoken(n) && controls(kind, n).map { it.name() }.let { names -> names.size == 2 && names[0] == "Cancel" && names[1].isNotBlank() }
+            // One group named by its label, of Tab nodes: each named by its words, clickable and focusable, one of them selected.
+            "tabs" -> c.contains(SemanticsProperties.SelectableGroup) && !c.getOrNull(SemanticsProperties.ContentDescription).isNullOrEmpty() &&
+                controls(kind, n).let { tabs ->
+                    tabs.isNotEmpty() && tabs.size == n.children.size && tabs.all { x ->
+                        x.config.contains(SemanticsActions.OnClick) && (x.config.contains(SemanticsProperties.Focused) || x.config.contains(SemanticsProperties.Disabled)) && x.name().isNotBlank() && x.config.contains(SemanticsProperties.Selected)
+                    } && tabs.count { it.config.getOrNull(SemanticsProperties.Selected) == true } == 1
+                }
             else -> false
         }
     }
@@ -134,7 +142,7 @@ class ClaimsTest {
     /** The colour pairs each component's words sit on, from its report. */
     private fun pairs(r: Map<String, String>): List<Triple<String, String, String>> {
         val behind = r["behind"] ?: r["surface"]!!
-        return listOf("label", "title", "text", "description", "error", "term", "details").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } }
+        return listOf("label", "title", "text", "description", "error", "term", "details", "selected", "unselected").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } }
     }
 
     private fun nameSpoken(kind: String): Result {
@@ -145,7 +153,7 @@ class ClaimsTest {
     private fun targetTouch(kind: String): Result {
         under(LIGHT)
         val d = rule.density.density
-        return all(nodes(kind).flatMap { root -> controls(kind, root).map { n -> (n.size.width / d >= 48f && n.size.height / d >= 48f) to "${root.tag()} ${(n.size.width / d).toInt()}x${(n.size.height / d).toInt()} dp" } }, "$kind controls at least 48x48 dp")
+        return all(nodes(kind).flatMap { root -> controls(kind, root).map { n -> (n.size.width / d >= 48f && n.size.height / d >= 48f) to "${root.tag()} ${n.name()} ${(n.size.width / d).toInt()}x${(n.size.height / d).toInt()} dp at y=${(n.positionInRoot.y / d).toInt()}" } }, "$kind controls at least 48x48 dp")
     }
 
     private fun motionReduced(kind: String): Result {
