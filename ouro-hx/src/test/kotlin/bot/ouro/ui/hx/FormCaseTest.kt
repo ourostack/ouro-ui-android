@@ -24,13 +24,13 @@ import java.io.File
 
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h4000dp-xxhdpi")
+@Config(qualifiers = "w411dp-h6000dp-xxhdpi")
 class FormCaseTest(private val id: String) {
     companion object {
         private val dir = File("../vendor/core/components")
 
         /** The components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("checkbox", "text-field", "switch")
+        private val components = listOf("checkbox", "text-field", "switch", "select")
 
         private fun cases(name: String) = JSONObject(File(dir, "$name.spec.json").readText()).getJSONArray("cases").let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
 
@@ -97,6 +97,12 @@ class FormCaseTest(private val id: String) {
                 OuroSwitch(
                     props.getString("label"), checked = props.optBoolean("checked"), onCheckedChange = {},
                     description = text("description"), error = text("error"), required = props.optBoolean("required"),
+                )
+            })
+            "select" -> ({
+                OuroSelect(
+                    props.getString("label"), value = text("value"), onValueChange = {}, options = COURSES,
+                    placeholder = text("placeholder"), description = text("description"), error = text("error"), required = props.optBoolean("required"),
                 )
             })
             else -> error("no renderer for $name. Fix: add one to FormCaseTest.")

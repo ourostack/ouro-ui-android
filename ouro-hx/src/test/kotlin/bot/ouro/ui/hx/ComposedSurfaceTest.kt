@@ -46,7 +46,7 @@ import java.io.File
 
 @RunWith(RobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h4000dp-xxhdpi")
+@Config(qualifiers = "w411dp-h6000dp-xxhdpi")
 class ComposedSurfaceTest {
     @get:Rule
     val rule = createComposeRule()
