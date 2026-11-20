@@ -183,7 +183,7 @@ class ClaimsTest {
                         n.within().filter { it.config.contains(SemanticsProperties.Heading) }.all { it.words().isNotBlank() }
                 }
             // A group named by its label, and one menu button named for what it opens.
-            "swipe-actions" -> !c.getOrNull(SemanticsProperties.ContentDescription).isNullOrBlank() && controls(kind, n).let { cs ->
+            "swipe-actions" -> n.name().isNotBlank() && controls(kind, n).let { cs ->
                 cs.size == 1 && cs.all { x -> x.config.contains(SemanticsActions.OnClick) && x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() }
             }
             // A collection named by its label, each row a collection item; or, with no rows, its message as plain text.
