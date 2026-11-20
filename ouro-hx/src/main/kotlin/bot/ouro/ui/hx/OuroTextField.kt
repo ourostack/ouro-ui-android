@@ -3,6 +3,7 @@ package bot.ouro.ui.hx
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
@@ -27,12 +27,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.hideFromAccessibility
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -51,10 +55,16 @@ import androidx.compose.ui.unit.sp
 /** What kind of text a field holds (core's `type`): each sets the keyboard. Password hides the text and adds a Show button. */
 enum class OuroTextFieldType { Text, Email, Password, Tel, Url, Search }
 
+/** How a field is drawn (core's `variant`): Outline is a box with an edge, Plain is the line under it only. */
+enum class OuroTextFieldVariant { Outline, Plain }
+
+/** How tall a field is (core's `size`): Md is 48 dp with 16 sp text, Lg is 56 dp with larger text. */
+enum class OuroTextFieldSize { Md, Lg }
+
 /**
  * A labelled field for a line of text, at least 48 dp tall. The [label] stays above it and is its name for TalkBack
  * (", required" when [required]); a [placeholder] is an example of what to type, never the name. An [error] turns the
- * edge destructive and is read with the field, then the error and the [description] under it. [hideLabel] hides the
+ * edge destructive and is read with the field as its state description, then the error and the [description]. [clearable] adds a Clear button while there is text, and [variant] and [size] set how it is drawn. [hideLabel] hides the
  * words but keeps the name. [keyboardType] overrides the type's keyboard, such as [KeyboardType.Number] for a number,
  * and [minLines] above 1 makes a longer answer over several lines.
  */
@@ -74,6 +84,9 @@ fun OuroTextField(
     keyboardType: KeyboardType? = null,
     minLines: Int = 1,
     onSubmit: (() -> Unit)? = null,
+    variant: OuroTextFieldVariant = OuroTextFieldVariant.Outline,
+    size: OuroTextFieldSize = OuroTextFieldSize.Md,
+    clearable: Boolean = false,
 ) {
     val look = Ouro.look
     val c = look.colors
@@ -92,6 +105,9 @@ fun OuroTextField(
     val singleLine = minLines <= 1
     val name = if (required) "$label, required" else label
     val shape = RoundedCornerShape(look.radius)
+    val large = size == OuroTextFieldSize.Lg
+    val plain = variant == OuroTextFieldVariant.Plain
+    val spoken = listOfNotNull(error, description).joinToString(" ").ifEmpty { null }
     Column(
         modifier
             .graphicsLayer { alpha = if (enabled) 1f else 0.5f }
@@ -105,6 +121,8 @@ fun OuroTextField(
                     "behind" to OuroColor.hex(behind),
                     "edge" to OuroColor.hex(edge),
                     "required" to required,
+                    "hasError" to (error != null),
+                    "hasNotes" to (spoken != null),
                 )
             },
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -125,13 +143,14 @@ fun OuroTextField(
             onValueChange = onValueChange,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = OuroMinTarget)
+                .heightIn(min = if (large) 56.dp else OuroMinTarget)
                 .semantics {
                     contentDescription = name
                     if (error != null) this.error(error)
+                    if (spoken != null) stateDescription = spoken
                 },
             enabled = enabled,
-            textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 22.sp),
+            textStyle = TextStyle(color = textColor, fontSize = if (large) 18.sp else 16.sp, lineHeight = if (large) 24.sp else 22.sp),
             keyboardOptions = KeyboardOptions(
                 keyboardType = keyboardType ?: when (type) {
                     OuroTextFieldType.Email -> KeyboardType.Email
@@ -162,11 +181,18 @@ fun OuroTextField(
             interactionSource = interaction,
             cursorBrush = SolidColor(textColor),
             decorationBox = { inner ->
+                val lineColor = if (focused) ring else edge
+                val lineWidth = if (focused) 2.dp else 1.dp
+                val frame = if (plain) {
+                    Modifier.drawBehind {
+                        val y = size.height - lineWidth.toPx() / 2
+                        drawLine(lineColor, Offset(0f, y), Offset(size.width, y), lineWidth.toPx())
+                    }
+                } else {
+                    Modifier.background(behind, shape).border(lineWidth, lineColor, shape)
+                }
                 Row(
-                    Modifier
-                        .background(behind, shape)
-                        .border(if (focused) 2.dp else 1.dp, if (focused) ring else edge, shape)
-                        .padding(start = 12.dp, end = if (password) 0.dp else 12.dp),
+                    frame.padding(start = if (plain) 0.dp else 12.dp, end = if (password || clearable) 0.dp else 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Box(Modifier.weight(1f).padding(vertical = 12.dp)) {
@@ -175,13 +201,31 @@ fun OuroTextField(
                         }
                         inner()
                     }
+                    if (clearable && value.isNotEmpty() && enabled) {
+                        Box(
+                            Modifier
+                                .sizeIn(minWidth = OuroMinTarget, minHeight = OuroMinTarget)
+                                .clickable(role = Role.Button) { onValueChange("") }
+                                .clearAndSetSemantics {
+                                    contentDescription = "Clear"
+                                    role = Role.Button
+                                    onClick { onValueChange(""); true }
+                                }
+                                .padding(horizontal = 12.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            BasicText("Clear", style = TextStyle(color = descriptionColor, fontSize = 14.sp, fontWeight = FontWeight.Medium))
+                        }
+                    }
                     if (password) {
                         Box(
                             Modifier
                                 .sizeIn(minWidth = OuroMinTarget, minHeight = OuroMinTarget)
-                                .toggleable(value = revealed, enabled = enabled, role = Role.Switch) { revealed = it }
+                                .clickable(enabled = enabled, role = Role.Button) { revealed = !revealed }
                                 .clearAndSetSemantics {
                                     contentDescription = "Show password"
+                                    role = Role.Button
+                                    onClick { revealed = !revealed; true }
                                     stateDescription = if (revealed) "Shown" else "Hidden"
                                 }
                                 .padding(horizontal = 12.dp),
@@ -195,6 +239,6 @@ fun OuroTextField(
         )
         // The field itself says its error; the words under it are for the eye, so they aren't read twice.
         if (error != null) BasicText(error, Modifier.semantics { hideFromAccessibility() }, style = TextStyle(color = errorColor, fontSize = 14.sp, lineHeight = 20.sp))
-        if (description != null) BasicText(description, style = TextStyle(color = descriptionColor, fontSize = 14.sp, lineHeight = 20.sp))
+        if (description != null) BasicText(description, Modifier.semantics { hideFromAccessibility() }, style = TextStyle(color = descriptionColor, fontSize = 14.sp, lineHeight = 20.sp))
     }
 }

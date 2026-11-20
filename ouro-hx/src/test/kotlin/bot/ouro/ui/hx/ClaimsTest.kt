@@ -107,8 +107,10 @@ class ClaimsTest {
             }
             "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) }.let { fields ->
                 fields.size == 1 && fields.all { x ->
-                    x.config.contains(SemanticsProperties.EditableText) && x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x)
-                } && n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Switch }.all { it.name() == "Show password" }
+                    x.config.contains(SemanticsProperties.EditableText) && x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x) &&
+                        (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error)) &&
+                        (n.report()["hasNotes"] != "true" || x.config.contains(SemanticsProperties.StateDescription))
+                } && n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button }.all { it.name() in listOf("Show password", "Clear") }
             }
             // A line is nothing to TalkBack; a labelled one is its label, as text.
             "separator" -> role == null && !clickable && !focusable &&

@@ -127,6 +127,8 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         )
                         OuroTextField("Password", value = "lemon-orzo", onValueChange = {}, Modifier.testTag("text-field-case-password"), type = OuroTextFieldType.Password)
                         OuroTextField("Recipe title", value = "", onValueChange = {}, Modifier.testTag("text-field-case-with-error"), error = "Give the recipe a title.", placeholder = "Lemon orzo")
+                        OuroTextField("Search recipes", value = "lemon", onValueChange = {}, Modifier.testTag("text-field-clearable"), type = OuroTextFieldType.Search, clearable = true, variant = OuroTextFieldVariant.Plain)
+                        OuroTextField("Serves", value = "4", onValueChange = {}, Modifier.testTag("text-field-large"), size = OuroTextFieldSize.Lg)
                     }
                 }
                 if (only == null || only == "separator") {
