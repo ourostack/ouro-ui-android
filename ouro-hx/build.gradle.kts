@@ -15,7 +15,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
-    testOptions { unitTests { isIncludeAndroidResources = true } }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            // The gallery is drawn on a 411 by 6000 dp screen at xxhdpi, so each snapshot is a bitmap of about 90 MB and every_theme ran out of the default 512 MB heap.
+            all { it.maxHeapSize = "3g" }
+        }
+    }
     publishing { singleVariant("release") { withSourcesJar() } }
 }
 
