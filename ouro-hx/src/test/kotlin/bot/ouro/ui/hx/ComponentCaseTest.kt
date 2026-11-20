@@ -37,7 +37,7 @@ class ComponentCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("tabs", "tab-bar")
+        private val components = listOf("tabs", "tab-bar", "sidebar")
 
         private fun cases(name: String) = JSONObject(File(dir, "$name.spec.json").readText()).getJSONArray("cases").let { a -> (0 until a.length()).map { a.getJSONObject(it) } }
 
@@ -57,9 +57,13 @@ class ComponentCaseTest(private val id: String) {
 
     private fun SemanticsNode.words() = (config.getOrNull(SemanticsProperties.Text) ?: emptyList()).joinToString(" ") { it.text }
 
+    /** What a person presses in the group; a sidebar's header and section headings are text beside them, not part of the agent's list. */
+    private fun pressables(group: SemanticsNode) =
+        if (group.config.getOrNull(OuroReport)?.let { parseOuroReport(it)["kind"] } == "sidebar") group.children.filter { it.config.contains(SemanticsActions.OnClick) } else group.children
+
     /** The tree an agent reads: the group's name, and what it holds, each a button named by its words. */
     private fun agentTree(group: SemanticsNode): JSONObject {
-        val children = group.children.map { n ->
+        val children = pressables(group).map { n ->
             val role = if (n.config.contains(SemanticsActions.OnClick)) "button" else "text"
             JSONObject().put("role", role).put("name", n.words())
         }
@@ -74,6 +78,7 @@ class ComponentCaseTest(private val id: String) {
         val props = case.getJSONObject("props")
         val slots = case.getJSONObject("slots")
         val pressed = mutableListOf<String>()
+        val labels = mutableMapOf<String, String>()
         var value by mutableStateOf(props.optString("value", props.optString("current")).lowercase())
         when (name) {
             "tabs" -> {
@@ -95,19 +100,42 @@ class ComponentCaseTest(private val id: String) {
                     }
                 }
             }
+            "sidebar" -> {
+                val icon: @Composable () -> Unit = { androidx.compose.foundation.layout.Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
+                val sections = mutableListOf<OuroSidebarSection>()
+                for (entry in slots.getString("sections").split("; ")) {
+                    val heading = if (": " in entry) entry.substringBefore(": ") else null
+                    val text = entry.substringAfter(": ")
+                    val item = OuroSidebarItem(text.substringBefore(" (badge "), icon, badge = if (" (badge " in text) text.substringAfter(" (badge ").removeSuffix(")") else null)
+                    if (heading != null || sections.isEmpty()) sections += OuroSidebarSection(heading, listOf(item))
+                    else sections[sections.lastIndex] = sections.last().let { it.copy(items = it.items + item) }
+                }
+                for (i in sections) for (it in i.items) labels[it.label + (if (it.badge != null && !props.optBoolean("collapsed")) " ${it.badge}" else "")] = it.label
+                rule.setContent {
+                    OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                        OuroSidebar(
+                            props.getString("label"), value.let { v -> sections.flatMap { it.items }.firstOrNull { it.label.lowercase() == v }?.label }, { pressed += it.lowercase(); value = it.lowercase() }, sections,
+                            collapsed = props.optBoolean("collapsed"),
+                            header = if (slots.has("header")) ({ androidx.compose.foundation.text.BasicText(slots.getString("header")) }) else null,
+                        )
+                    }
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ComponentCaseTest.")
         }
         val group = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
         assertEquals(id, case.getJSONObject("agent").toString(), agentTree(group).toString())
         val before0 = value
-        for (child in group.children) {
+        // A row's name can carry its badge; the label is what a press reports.
+        fun key(n: SemanticsNode) = (labels[n.words()] ?: n.words()).lowercase()
+        for (child in pressables(group)) {
             val selected = child.config.getOrNull(SemanticsProperties.Selected)
             // A tab bar's accessory is a button, which is never selected.
             if (selected == null && slots.optString("accessory") == child.words()) continue
-            assertEquals("$id ${child.words()} selected", child.words().lowercase() == before0, selected)
+            assertEquals("$id ${child.words()} selected", key(child) == before0, selected)
         }
         val before = value
-        for ((i, child) in group.children.withIndex()) {
+        for ((i, child) in pressables(group).withIndex()) {
             val disabled = child.config.contains(SemanticsProperties.Disabled)
             val matcher = SemanticsMatcher("child $i") { n -> n.id == child.id }
             pressed.clear()
@@ -115,11 +143,11 @@ class ComponentCaseTest(private val id: String) {
             if (!disabled && accessoryChild) {
                 rule.onNode(matcher).performClick()
                 rule.waitForIdle()
-                assertEquals("$id pressing ${child.words()}", listOf(child.words().lowercase()), pressed)
-            } else if (!disabled && child.words().lowercase() != before) {
+                assertEquals("$id pressing ${child.words()}", listOf(key(child)), pressed)
+            } else if (!disabled && key(child) != before) {
                 rule.onNode(matcher).performClick()
                 rule.waitForIdle()
-                assertEquals("$id pressing ${child.words()}", listOf(child.words().lowercase()), pressed)
+                assertEquals("$id pressing ${child.words()}", listOf(key(child)), pressed)
                 assertTrue("$id the pressed tab is selected", rule.onNode(matcher).fetchSemanticsNode().config.getOrNull(SemanticsProperties.Selected) == true)
             } else if (disabled) {
                 rule.onNode(matcher).performClick()

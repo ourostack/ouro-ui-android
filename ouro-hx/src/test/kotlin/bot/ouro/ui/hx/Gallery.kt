@@ -179,6 +179,23 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         )
                     }
                 }
+                if (only == null || only == "sidebar") {
+                    val icon: @Composable () -> Unit = { Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
+                    Column(Modifier.testTag("gallery-sidebar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroSidebar(
+                            "Main", current = "Recipes", onPress = {}, modifier = Modifier.testTag("sidebar-case-sections-and-badge"),
+                            sections = listOf(
+                                OuroSidebarSection(null, listOf(OuroSidebarItem(if (long) LONG else "Recipes", icon), OuroSidebarItem("Inbox", icon, badge = "12"))),
+                                OuroSidebarSection("Library", listOf(OuroSidebarItem("Cookbooks", icon))),
+                            ),
+                            header = { BasicText("Spoonjoy", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)) },
+                        )
+                        OuroSidebar(
+                            "Main", current = "Recipes", onPress = {}, modifier = Modifier.testTag("sidebar-case-collapsed-rail"), collapsed = true,
+                            sections = listOf(OuroSidebarSection(null, listOf(OuroSidebarItem("Recipes", icon), OuroSidebarItem("Cookbooks", icon)))),
+                        )
+                    }
+                }
                 if (only == null || only == "tab-bar") {
                     val icon: @Composable () -> Unit = { Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
                     Column(Modifier.testTag("gallery-tab-bar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
