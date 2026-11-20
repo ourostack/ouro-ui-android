@@ -131,7 +131,7 @@ class ClaimsTest {
                     x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && requiredSpoken(n, x) &&
                         (n.report()["hasError"] != "true" || x.config.contains(SemanticsProperties.Error)) &&
                         (n.report()["hasNotes"] != "true" || x.config.contains(SemanticsProperties.StateDescription))
-                } && n.within().none { it.id != cs[0].id && !it.config.contains(SemanticsActions.SetText) && it.words().isNotBlank() && generateSequence(it) { p -> p.parent }.none { p -> p.id == cs[0].id } }
+                } && n.within().none { it.id != cs[0].id && !it.config.contains(SemanticsActions.SetText) && !it.config.contains(SemanticsProperties.HideFromAccessibility) && it.words().isNotBlank() && generateSequence(it) { p -> p.parent }.none { p -> p.id == cs[0].id } }
             }
             "text-field" -> n.within().filter { it.config.contains(SemanticsActions.SetText) }.let { fields ->
                 fields.size == 1 && fields.all { x ->
