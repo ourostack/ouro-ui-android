@@ -162,7 +162,6 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                             description = if (long) LONG else "We never share it.",
                         ) { m, on -> FieldTextBox(m, on) }
                         OuroField("Email", Modifier.testTag("field-case-with-error"), error = if (long) LONG else "Enter an email address.") { m, on -> FieldTextBox(m, on) }
-                        OuroField("Nickname", Modifier.testTag("field-disabled"), enabled = false) { m, on -> FieldTextBox(m, on) }
                     }
                 }
                 if (only == null || only == "separator") {
