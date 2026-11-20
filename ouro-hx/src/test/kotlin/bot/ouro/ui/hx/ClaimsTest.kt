@@ -40,7 +40,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "switch", "select", "field")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "switch", "select", "field")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -69,6 +69,8 @@ class ClaimsTest {
     private fun SemanticsNode.words() = (config.getOrNull(SemanticsProperties.Text) ?: emptyList()).joinToString(" ") { it.text }
     /** What TalkBack names it by: its content description when it has one, else its words. */
     private fun SemanticsNode.name() = config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: words()
+    /** A row's words: its own, or those of what it holds, since a row of Items holds merged nodes of their own. */
+    private fun SemanticsNode.rowWords(): String = within().map { it.words() }.filter { it.isNotBlank() }.joinToString(" ")
     private fun SemanticsNode.within(): List<SemanticsNode> = listOf(this) + children.flatMap { it.within() }
 
     /** The controls a component draws, which a person presses or types into: the node itself, or those inside it. */
@@ -80,6 +82,7 @@ class ClaimsTest {
         "dialog", "sheet", "confirm-dialog" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
         "tabs" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Tab }
         "tab-bar", "sidebar" -> n.within().filter { it.config.contains(SemanticsActions.OnClick) }
+        "item-group" -> listOf(n)
         else -> listOf(n)
     }
 
@@ -178,6 +181,12 @@ class ClaimsTest {
                     } && rows.count { it.config.getOrNull(SemanticsProperties.Selected) == true } <= 1 &&
                         n.within().filter { it.config.contains(SemanticsProperties.Heading) }.all { it.words().isNotBlank() }
                 }
+            // A collection named by its label, each row a collection item; or, with no rows, its message as plain text.
+            "item-group" -> if (n.report()["empty"] == "true") role == null && !clickable && !focusable && n.words().isNotBlank()
+            else c.contains(SemanticsProperties.CollectionInfo) && (n.report()["labelled"] != "true" || n.name().isNotBlank()) &&
+                n.within().drop(1).filter { it.config.contains(SemanticsProperties.CollectionItemInfo) }.let { rows ->
+                    rows.isNotEmpty() && rows.size == c[SemanticsProperties.CollectionInfo].rowCount && rows.all { it.rowWords().isNotBlank() }
+                }
             else -> false
         }
     }
@@ -199,7 +208,7 @@ class ClaimsTest {
 
     private fun nameSpoken(kind: String): Result {
         under(LIGHT)
-        return all(nodes(kind).map { n -> spoken(kind, n) to "${n.tag()}: " + controls(kind, n).joinToString { "role ${it.config.getOrNull(SemanticsProperties.Role)} \"${it.name()}\"" } }, "${kind}s named and typed as the spec says")
+        return all(nodes(kind).map { n -> spoken(kind, n) to "${n.tag()}: " + controls(kind, n).joinToString { "role ${it.config.getOrNull(SemanticsProperties.Role)} \"${it.name()}\"" } + if (kind == "item-group") " rows " + n.children.joinToString { c -> "${c.config.contains(SemanticsProperties.CollectionItemInfo)}:${c.rowWords()}" } else "" }, "${kind}s named and typed as the spec says")
     }
 
     private fun targetTouch(kind: String): Result {

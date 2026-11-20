@@ -231,6 +231,20 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         )
                     }
                 }
+                if (only == null || only == "item-group") {
+                    Column(Modifier.testTag("gallery-item-group"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroItemGroup("Recipes", Modifier.testTag("item-group-case-divided-three-rows")) {
+                            item { BasicText(if (long) LONG else "Braised short ribs", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)) }
+                            item { BasicText("Lemon orzo", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)) }
+                            item { BasicText("Miso soup", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)) }
+                        }
+                        OuroItemGroup("Recipes", Modifier.testTag("item-group-case-outline"), variant = OuroGroupVariant.Outline, ordered = true) {
+                            item { BasicText(if (long) LONG else "Lemon orzo", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)) }
+                            item { BasicText("Miso soup", style = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)) }
+                        }
+                        OuroItemGroup("Recipes", Modifier.testTag("item-group-case-empty-message"), empty = if (long) LONG else "No recipes yet") {}
+                    }
+                }
                 if (only == null || only == "tab-bar") {
                     val icon: @Composable () -> Unit = { Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
                     Column(Modifier.testTag("gallery-tab-bar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
