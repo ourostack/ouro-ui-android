@@ -179,6 +179,17 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         )
                     }
                 }
+                if (only == null || only == "tab-bar") {
+                    val icon: @Composable () -> Unit = { Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
+                    Column(Modifier.testTag("gallery-tab-bar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroTabBar(
+                            "Main", current = "Recipes", onPress = {}, modifier = Modifier.testTag("tab-bar-case-main-with-search"),
+                            items = listOf(OuroBarItem("Home", icon), OuroBarItem(if (long) LONG else "Recipes", icon), OuroBarItem("Shopping", icon)),
+                            accessory = OuroBarItem("Search", icon),
+                        )
+                        OuroTabBar("Main", current = "Home", onPress = {}, modifier = Modifier.testTag("tab-bar-case-two-tabs"), items = listOf(OuroBarItem("Home", icon), OuroBarItem("Settings", icon)))
+                    }
+                }
                 if (only == null || only == "description-list") {
                     OuroDescriptionList(
                         listOf(OuroDescriptionItem(if (long) LONG else "Prep time", if (long) LONG else "20 minutes"), OuroDescriptionItem("Serves", "6")),
