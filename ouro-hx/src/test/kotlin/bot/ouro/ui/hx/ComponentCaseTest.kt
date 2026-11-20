@@ -31,7 +31,7 @@ import java.io.File
 
 @RunWith(ParameterizedRobolectricTestRunner::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-@Config(qualifiers = "w411dp-h4000dp-xxhdpi")
+@Config(qualifiers = "w411dp-h6000dp-xxhdpi")
 class ComponentCaseTest(private val id: String) {
     companion object {
         private val dir = File("../vendor/core/components")
