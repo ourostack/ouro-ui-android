@@ -15,7 +15,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
-    testOptions { unitTests { isIncludeAndroidResources = true } }
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            // The gallery is drawn as one tall image per theme, and grows with each component.
+            all { it.maxHeapSize = "3g" }
+        }
+    }
     publishing { singleVariant("release") { withSourcesJar() } }
 }
 
