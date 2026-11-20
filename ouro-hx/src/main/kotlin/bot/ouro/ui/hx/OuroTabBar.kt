@@ -80,7 +80,7 @@ fun OuroTabBar(
             .background(behind)
             .drawBehind { drawRect(edge, Offset(0f, 0f), Size(size.width, 1.dp.toPx())) }
             .selectableGroup()
-            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .padding(horizontal = 8.dp)
             .semantics {
                 contentDescription = label
                 ouroReport = report(
