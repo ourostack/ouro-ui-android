@@ -185,8 +185,8 @@ fun OuroTextField(
                 val lineWidth = if (focused) 2.dp else 1.dp
                 val frame = if (plain) {
                     Modifier.drawBehind {
-                        val y = size.height - lineWidth.toPx() / 2
-                        drawLine(lineColor, Offset(0f, y), Offset(size.width, y), lineWidth.toPx())
+                        val y = this.size.height - lineWidth.toPx() / 2
+                        drawLine(lineColor, Offset(0f, y), Offset(this.size.width, y), lineWidth.toPx())
                     }
                 } else {
                     Modifier.background(behind, shape).border(lineWidth, lineColor, shape)
