@@ -54,6 +54,10 @@ import bot.ouro.ui.hx.Ouro
 import bot.ouro.ui.hx.OuroBadge
 import bot.ouro.ui.hx.OuroButton
 import bot.ouro.ui.hx.OuroCard
+import bot.ouro.ui.hx.OuroConfirmDialog
+import bot.ouro.ui.hx.OuroDialog
+import bot.ouro.ui.hx.OuroPresentation
+import bot.ouro.ui.hx.OuroSheet
 import bot.ouro.ui.hx.OuroFrame
 import bot.ouro.ui.hx.OuroItem
 import bot.ouro.ui.hx.OuroTheme
@@ -81,6 +85,7 @@ class MainActivity : ComponentActivity() {
                     when (screen) {
                         "gallery" -> Gallery()
                         "agent" -> AgentScreen()
+                        "overlays" -> OverlaysScreen()
                         // A person-only button hands the person to the app's own screen for it: the list, with Place order.
                         "composed" -> ComposedScreen(onHandoff = { screen = "shop" })
                         "a2ui" -> ComposedScreen(onHandoff = { screen = "shop" }, a2ui = true)
@@ -101,6 +106,21 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun Heading(text: String) {
     BasicText(text, style = TextStyle(color = Ouro.look.colors.foreground, fontSize = 24.sp, fontWeight = FontWeight.SemiBold))
+}
+
+/** Dialog, Sheet and ConfirmDialog in their own windows: each opens from a button and closes from Close, Cancel or Back. */
+@Composable
+private fun OverlaysScreen() {
+    var open by remember { mutableStateOf<String?>(null) }
+    var last by remember { mutableStateOf("Nothing yet") }
+    Heading("Overlays")
+    OuroButton("Edit recipe", onPress = { open = "dialog" }, Modifier.testTag("open-dialog"))
+    OuroButton("Save to cookbook", onPress = { open = "sheet" }, Modifier.testTag("open-sheet"))
+    OuroButton("Delete recipe", onPress = { open = "confirm" }, Modifier.testTag("open-confirm"), tone = OuroTone.Destructive)
+    BasicText(last, Modifier.testTag("overlay-last"), style = TextStyle(color = Ouro.look.colors.mutedForeground, fontSize = 14.sp))
+    OuroDialog(open == "dialog", onClose = { open = null; last = "Dialog closed: $it" }, title = "Edit recipe", description = "Change the title and the notes.", presentation = OuroPresentation.Dialog)
+    OuroSheet(open == "sheet", onClose = { open = null; last = "Sheet closed: $it" }, title = "Save to cookbook")
+    OuroConfirmDialog(open == "confirm", onConfirm = { open = null; last = "Deleted" }, onClose = { open = null; last = "Kept" }, title = "Delete recipe?", confirmLabel = "Delete", description = "This can't be undone.", tone = OuroTone.Destructive)
 }
 
 @Composable

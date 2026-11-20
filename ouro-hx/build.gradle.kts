@@ -46,7 +46,7 @@ publishing {
             afterEvaluate { from(components["release"]) }
             pom {
                 name.set("Ouro HX for Android")
-                description.set("Ouro UI's components in Jetpack Compose: Button, Badge, Card, Item, Checkbox, TextField, Separator and DescriptionList, from ouro-ui-core's specs and tokens.")
+                description.set("Ouro UI's components in Jetpack Compose: Button, Badge, Card, Item, Checkbox, TextField, Separator, DescriptionList, Dialog, Sheet and ConfirmDialog, from ouro-ui-core's specs and tokens.")
                 url.set("https://github.com/ourostack/ouro-ui-android")
                 licenses { license { name.set("MIT"); url.set("https://opensource.org/licenses/MIT") } }
             }
