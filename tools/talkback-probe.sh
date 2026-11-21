@@ -32,11 +32,11 @@ for n in re.findall(r'<node [^>]*>', open(sys.argv[2]).read()):
         print((x1 + x2) // 2, (y1 + y2) // 2); break
 PY
 )
-  [ -n "$xy" ] && adb shell input tap $xy
+  [ -n "$xy" ] && adb shell input swipe $xy $xy 600
 }
 status=0
 check() { # <case> <content-desc prefix> <expected phrase>
-  for _ in 1 2 3 4 5 6; do
+  for _ in 1 2 3; do
     adb logcat -c; tap "$2"; sleep 4
     spoken > "$EV/speech-$1.txt"
     grep -qF "$3" "$EV/speech-$1.txt" && { echo "TalkBack case $1: PASS expected \"$3\""; return; }
