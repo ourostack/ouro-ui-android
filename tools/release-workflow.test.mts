@@ -42,3 +42,7 @@ test("creating the release is safe to run again, and the workflow can be run by 
   assert.match(workflow, /\n {2}workflow_dispatch:\n/);
   assert.match(workflow, /\n {2}release:\n {4}if: github\.event_name == 'push'\n/);
 });
+
+test("deploy runs when the site job succeeded even though a by-hand run skipped the release job before it", () => {
+  assert.match(workflow, /\n {2}deploy:\n {4}needs: site\n {4}if: \$\{\{ !cancelled\(\) && needs\.site\.result == 'success' \}\}\n/);
+});
