@@ -355,15 +355,17 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                 }
                 if (only == "table") {
                     val cols = listOf(if (long) LONG else "Recipe", "Time", "Serves")
+                    val short = listOf("Recipe", "Time", "Serves")
                     val data = listOf(listOf("Braised short ribs", "4 h", "6"), listOf("Herb salad", "10 min", "2"), listOf("Rye bread", "18 h", "8"))
                     Column(Modifier.testTag("gallery-table"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        OuroTable("Recipes", cols, data, Modifier.testTag("table-case-basic"), striped = true)
-                        OuroTable("Recipes", cols, data, Modifier.testTag("table-case-hidden-caption"), hideCaption = true, dense = true)
-                        OuroTable("Recipes", cols, data, Modifier.testTag("table-case-sortable"), sortable = listOf(cols[0], "Serves"))
-                        OuroTable("Recipes", cols, data.reversed(), Modifier.testTag("table-case-sorted"), sortable = listOf(cols[0], "Serves"), sortedBy = "Serves", sortDirection = OuroSortDirection.Descending)
-                        OuroTable("Recipes", cols, data, Modifier.testTag("table-case-row-links"), onRowPress = {})
+                        // The empty cases come first: at 200% the long cases outgrow the test window, and a text below its bottom edge is never placed.
                         OuroTable("Recipes", cols, emptyList(), Modifier.testTag("table-case-empty"))
                         OuroTable("Recipes", cols, emptyList(), Modifier.testTag("table-case-empty-custom"), empty = if (long) LONG else "No recipes match.")
+                        OuroTable("Recipes", cols, data, Modifier.testTag("table-case-basic"), striped = true)
+                        OuroTable("Recipes", short, data, Modifier.testTag("table-case-hidden-caption"), hideCaption = true, dense = true)
+                        OuroTable("Recipes", short, data, Modifier.testTag("table-case-sortable"), sortable = listOf("Recipe", "Serves"))
+                        OuroTable("Recipes", short, data.reversed(), Modifier.testTag("table-case-sorted"), sortable = listOf("Recipe", "Serves"), sortedBy = "Serves", sortDirection = OuroSortDirection.Descending)
+                        OuroTable("Recipes", short, data, Modifier.testTag("table-case-row-links"), onRowPress = {})
                     }
                 }
                 if (only == null || only == "description-list") {
