@@ -14,6 +14,7 @@ for _ in $(seq 1 60); do
 done
 sleep 20
 
+{ adb shell pm list packages | grep -iE "talkback|marvin|accessib|gms|vending"; adb shell pm list features | grep -i access; adb shell settings get secure enabled_accessibility_services; adb shell getprop ro.build.flavor; adb shell cmd package list packages -s | wc -l; } > "$EV/talkback-probe.txt" 2>&1
 ./gradlew --no-daemon :samples:shop:connectedDebugAndroidTest
 code=$?
 cp -r samples/shop/build/outputs/androidTest-results "$EV/" 2>/dev/null || true
