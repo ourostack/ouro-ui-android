@@ -12,7 +12,19 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
+import android.view.View
+import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
+import androidx.compose.ui.node.RootForTest
+import androidx.compose.ui.platform.InternalComposeUiApi
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.core.view.drawToBitmap
 import java.io.File
 import androidx.activity.ComponentActivity
@@ -103,7 +115,28 @@ class MainActivity : ComponentActivity() {
                 File(filesDir, "photo.png").outputStream().use { picture.compress(Bitmap.CompressFormat.PNG, 100, it) }
             }, 3000)
         }
+        // CI moves TalkBack's focus the way a person's swipe does, by asking the view for accessibility focus on a node.
+        if (intent.getStringExtra("screen") == "table" && (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, received: Intent) {
+                    received.getStringExtra("name")?.let { focusNode(window.decorView, it) }
+                }
+            }
+            registerReceiver(receiver, IntentFilter("bot.ouro.shop.FOCUS"), Context.RECEIVER_EXPORTED)
+        }
     }
+}
+
+@OptIn(InternalComposeUiApi::class)
+private fun focusNode(decor: View, prefix: String) {
+    fun root(view: View): RootForTest? =
+        view as? RootForTest ?: (view as? ViewGroup)?.let { group -> (0 until group.childCount).firstNotNullOfOrNull { root(group.getChildAt(it)) } }
+    fun find(node: SemanticsNode): SemanticsNode? =
+        if (node.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()?.let { it == prefix || it.startsWith("$prefix,") } == true) node
+        else node.children.firstNotNullOfOrNull { find(it) }
+    val host = root(decor) ?: return
+    val target = find(host.semanticsOwner.rootSemanticsNode) ?: return
+    (host as View).accessibilityNodeProvider?.performAction(target.id, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
 }
 
 /** A sortable grid and a sorted one, for TalkBack to read on CI. */

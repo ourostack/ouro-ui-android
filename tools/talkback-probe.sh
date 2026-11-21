@@ -23,21 +23,22 @@ sleep 5
 # a UI dump switches TalkBack off and on, which is what makes it start speaking
 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; sleep 20
 { adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp"; adb shell dumpsys activity activities | grep -E "topResumedActivity|ResumedActivity"; } > "$EV/focus.txt" 2>&1
-adb logcat -c
-for _ in 1 2 3 4 5 6 7 8; do
-  adb shell input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; sleep 3
-  adb shell input swipe 800 1200 200 1200 120; sleep 3
-done
-spoken > "$EV/speech-all.txt"; adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
+focus() { # <case> <content-desc prefix>
+  adb logcat -c
+  adb shell am broadcast -a bot.ouro.shop.FOCUS -p bot.ouro.shop --es name "$2" > /dev/null; sleep 5
+  spoken > "$EV/speech-$1.txt"
+}
+focus header Recipe; focus sorted Serves; focus row "Herb salad"
+adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
 check() { # <case> <expected phrase>
-  if grep -qF "$2" "$EV/speech-all.txt"; then echo "TalkBack case $1: PASS expected \"$2\""
+  if grep -qF "$2" "$EV/speech-$1.txt"; then echo "TalkBack case $1: PASS expected \"$2\""
   else echo "TalkBack case $1: FAIL expected \"$2\""; status=1; fi
 }
-check header "Column heading"
+check header "Recipe, Column heading"
 check sorted "Serves, sorted descending"
 check row "Herb salad, 10 min, 2"
-sed 's/^/  spoke: /' "$EV/speech-all.txt"
+for f in header sorted row; do echo "== $f"; cat "$EV/speech-$f.txt"; done
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
 adb shell dumpsys accessibility | head -30 > "$EV/a11y.txt" 2>&1
 exit $status
