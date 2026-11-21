@@ -127,7 +127,7 @@ jobs:
           mkdir -p "$EV"
           git clone https://github.com/google/talkback.git "$RUNNER_TEMP/talkback"
           git -C "$RUNNER_TEMP/talkback" checkout "$TALKBACK_SHA"
-          (cd "$RUNNER_TEMP/talkback" && gradle --no-daemon -Pandroid.sdk.dir="$ANDROID_HOME" assemblePhoneDebug) 2>&1 | tail -40 | tee "$EV/talkback-build.txt"
+          (cd "$RUNNER_TEMP/talkback" && JAVA_HOME="$JAVA_HOME_17_X64" gradle --no-daemon -Pandroid.sdk.dir="$ANDROID_HOME" assemblePhoneDebug) 2>&1 | tail -40 | tee "$EV/talkback-build.txt"
           find "$RUNNER_TEMP/talkback" -name "*.apk" | tee "$EV/talkback-apks.txt"
           cp "$(find "$RUNNER_TEMP/talkback" -name "*.apk" | grep -i phone | head -1)" "$RUNNER_TEMP/talkback.apk"
       - name: Build the sample
