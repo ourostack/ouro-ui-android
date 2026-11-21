@@ -30,7 +30,7 @@ class ListCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The list components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("item-group", "swipe-actions", "reorderable")
+        private val components = listOf("item-group", "swipe-actions", "reorderable", "conversation-list")
 
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
@@ -88,6 +88,21 @@ class ListCaseTest(private val id: String) {
                     }
                 }
             }
+            "conversation-list" -> {
+                val chats = if (slots.has("rows")) slots.getString("rows").split("; ").map { line ->
+                    val (id, rest) = line.split(": ", limit = 2)
+                    val parts = rest.split(" | ")
+                    val unread = parts.size >= 3 && parts.last() == "unread"
+                    OuroConversation(id, parts[0], parts.getOrElse(1) { "" }, parts.getOrNull(2)?.takeIf { !(parts.size == 3 && unread) }, unread)
+                } else emptyList()
+                rule.setContent {
+                    OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                        val empty = props.optString("empty")
+                        if (empty.isEmpty()) OuroConversationList(props.getString("label"), chats, selectedId = props.optString("selectedId").ifEmpty { null })
+                        else OuroConversationList(props.getString("label"), chats, selectedId = props.optString("selectedId").ifEmpty { null }, empty = empty)
+                    }
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ListCaseTest.")
         }
         val root = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
@@ -99,6 +114,13 @@ class ListCaseTest(private val id: String) {
                 .put("children", org.json.JSONArray((if (name == "reorderable") root.children.flatMap { it.children } else root.children).map { ch ->
                     if (ch.config.getOrNull(SemanticsProperties.Role) == Role.Button) JSONObject().put("role", "button").put("name", ch.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
                     else JSONObject().put("role", "text").put("name", ch.rowWords())
+                }))
+        } else if (name == "conversation-list" && root.config.contains(SemanticsProperties.CollectionInfo)) {
+            JSONObject().put("role", "group").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
+                .put("focusable", false)
+                .put("children", org.json.JSONArray(root.children.map { ch ->
+                    val cd = ch.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: ""
+                    JSONObject().put("role", if (ch.config.getOrNull(SemanticsProperties.Role) == Role.Button) "button" else "listitem").put("name", cd)
                 }))
         } else if (root.config.contains(SemanticsProperties.CollectionInfo)) {
             JSONObject().put("role", "group").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
