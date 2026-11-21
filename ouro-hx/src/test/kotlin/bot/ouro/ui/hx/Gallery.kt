@@ -258,6 +258,20 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         ) { BasicText("Lunch plans", style = text) }
                     }
                 }
+                if (only == null || only == "conversation-list") {
+                    Column(Modifier.testTag("gallery-conversation-list"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroConversationList(
+                            "Conversations",
+                            listOf(
+                                OuroConversation("a", "Ari", "9:41", if (long) LONG else "Lunch at noon?", unread = true),
+                                OuroConversation("b", "Sam", "Mon", "Notes from Monday"),
+                            ),
+                            Modifier.testTag("conversation-list-case-unread-and-selected"),
+                            selectedId = "b",
+                        )
+                        OuroConversationList("Conversations", emptyList(), Modifier.testTag("conversation-list-case-empty-list"), empty = if (long) LONG else "No conversations yet")
+                    }
+                }
                 if (only == null || only == "reorderable") {
                     val text = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)
                     var order by remember { mutableStateOf(listOf("Intro", "Verse", "Chorus")) }
