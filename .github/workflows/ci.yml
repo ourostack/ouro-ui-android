@@ -71,7 +71,7 @@ jobs:
         id: test
         run: |
           if ls ouro-hx/src/test/snapshots/*.png > /dev/null 2>&1; then
-            ./gradlew --no-daemon :ouro-actions:testDebugUnitTest :ouro-hx:recordRoborazziDebug
+            ./gradlew --no-daemon :ouro-actions:testDebugUnitTest :ouro-hx:verifyRoborazziDebug
           else
             echo "::warning::No snapshots committed yet: recording them. Commit ouro-hx/src/test/snapshots from this run's artifact."
             ./gradlew --no-daemon :ouro-actions:testDebugUnitTest :ouro-hx:recordRoborazziDebug
