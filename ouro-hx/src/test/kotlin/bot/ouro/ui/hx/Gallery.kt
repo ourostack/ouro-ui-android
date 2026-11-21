@@ -272,6 +272,13 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroConversationList("Conversations", emptyList(), Modifier.testTag("conversation-list-case-empty-list"), empty = if (long) LONG else "No conversations yet")
                     }
                 }
+                if (only == null || only == "message") {
+                    Column(Modifier.testTag("gallery-message"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroMessage("Ana", if (long) LONG else "See you at noon.", Modifier.testTag("message-case-received"), time = "9:41")
+                        OuroMessage("You", if (long) LONG else "On my way.", Modifier.testTag("message-case-own-failed"), role = OuroMessageRole.User, time = "9:42", failed = true)
+                        OuroMessage("Ouro", if (long) LONG else "Ana joined the conversation.", Modifier.testTag("message-case-system"), role = OuroMessageRole.System)
+                    }
+                }
                 if (only == null || only == "reorderable") {
                     val text = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)
                     var order by remember { mutableStateOf(listOf("Intro", "Verse", "Chorus")) }
