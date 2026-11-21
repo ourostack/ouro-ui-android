@@ -96,7 +96,7 @@ class ListCaseTest(private val id: String) {
         val tree = if (name == "swipe-actions" || name == "reorderable") {
             JSONObject().put("role", "group").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
                 .put("focusable", false)
-                .put("children", org.json.JSONArray(root.children.map { ch ->
+                .put("children", org.json.JSONArray((if (name == "reorderable") root.children.flatMap { it.children } else root.children).map { ch ->
                     if (ch.config.getOrNull(SemanticsProperties.Role) == Role.Button) JSONObject().put("role", "button").put("name", ch.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
                     else JSONObject().put("role", "text").put("name", ch.rowWords())
                 }))
