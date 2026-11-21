@@ -21,7 +21,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.compose.ui.node.RootForTest
-import androidx.compose.ui.platform.InternalComposeUiApi
+import androidx.compose.ui.InternalComposeUiApi
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
