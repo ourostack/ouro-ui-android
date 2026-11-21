@@ -18,7 +18,8 @@ Releases are tags `vX.Y.Z` on `main`, published as GitHub releases by `.github/w
 
    The release workflow checks the tag matches `ouro.version` and has notes, runs the tests, builds the Maven files
    for `bot.ouro.ui:ouro-actions` and `bot.ouro.ui:ouro-hx`, and creates the release with them attached. It then
-   publishes every release's Maven files to GitHub Pages as one Maven repository:
+   publishes every release's Maven files to GitHub Pages as one Maven repository (its own jobs, so a failed deploy reruns
+   alone; to rebuild and deploy the site by hand, run the Release workflow on `main` from the Actions tab):
 
    ```kotlin
    repositories { maven { url = uri("https://ourostack.github.io/ouro-ui-android/maven") } }

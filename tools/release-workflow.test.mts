@@ -27,3 +27,18 @@ test("a file attached but not attested fails the check", () => {
   const missing = workflow.replace(/ {12}\.\/\*\.pom\n/, "");
   assert.notDeepEqual([...attestedFiles(missing)].sort(), [...attachedFiles(missing)].sort());
 });
+
+test("the Pages deploy is its own job after the one that uploads the site, so a failed deploy reruns alone", () => {
+  assert.match(workflow, /\n {2}site:\n {4}needs: release\n/);
+  assert.match(workflow, /\n {2}deploy:\n {4}needs: site\n/);
+  const deploy = workflow.slice(workflow.indexOf("\n  deploy:"));
+  assert.match(deploy, /actions\/deploy-pages@/);
+  assert.doesNotMatch(workflow.slice(0, workflow.indexOf("\n  deploy:")), /actions\/deploy-pages@/);
+  assert.match(workflow.slice(workflow.indexOf("\n  site:"), workflow.indexOf("\n  deploy:")), /actions\/upload-pages-artifact@/);
+});
+
+test("creating the release is safe to run again, and the workflow can be run by hand to rebuild the site", () => {
+  assert.match(workflow, /gh release view "\$GITHUB_REF_NAME"[^\n]*\n\s+echo [^\n]*already exists/);
+  assert.match(workflow, /\n {2}workflow_dispatch:\n/);
+  assert.match(workflow, /\n {2}release:\n {4}if: github\.event_name == 'push'\n/);
+});
