@@ -53,7 +53,7 @@ import kotlinx.coroutines.launch
 /** One message for [OuroMessageList]: its [id], [author], [time] as already written, [text], and whether it is the person's [mine]. */
 data class OuroChatMessage(val id: String, val author: String, val time: String, val text: String, val mine: Boolean = false)
 
-/** A list builds every message up to this many, and only the messages in view above it. */
+/** Without a bounded height a list stops growing at 640 dp and scrolls. A list builds every message up to this many, and only the messages in view above it. */
 internal const val MessageListVirtualAbove = 20
 
 /**
@@ -182,7 +182,7 @@ fun OuroMessageList(
             }
         } else {
             Column(
-                Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier).semantics(properties = root).verticalScroll(scroll).padding(horizontal = 16.dp, vertical = 8.dp),
+                Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier.heightIn(max = 640.dp)).semantics(properties = root).verticalScroll(scroll).padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = gap,
             ) {
                 if (hasOlder) older()
