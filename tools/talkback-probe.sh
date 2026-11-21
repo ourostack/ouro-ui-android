@@ -17,7 +17,15 @@ adb shell settings put secure enabled_accessibility_services "$SVC"
 adb shell settings put secure accessibility_enabled 1
 sleep 25
 { adb shell settings get secure enabled_accessibility_services; adb shell dumpsys accessibility | grep -iE "Enabled services|Bound services|Crashed|installedServiceCount" ; } > "$EV/a11y.txt" 2>&1
-adb shell input keyevent KEYCODE_BACK; sleep 2
+adb shell settings put secure enabled_accessibility_services ""; sleep 3
+adb shell am force-stop com.android.talkback; sleep 2
+cat > "$EV/prefs.xml" <<'XML'
+<map><string name="pref_log_level">2</string><boolean name="first_time_user" value="false" /></map>
+XML
+adb push "$EV/prefs.xml" /data/local/tmp/tb-prefs.xml > "$EV/prefs.txt" 2>&1
+adb shell "run-as com.android.talkback mkdir -p shared_prefs; run-as com.android.talkback cp /data/local/tmp/tb-prefs.xml shared_prefs/com.android.talkback_preferences.xml" >> "$EV/prefs.txt" 2>&1
+adb shell "run-as com.android.talkback cat shared_prefs/com.android.talkback_preferences.xml" >> "$EV/prefs.txt" 2>&1
+adb shell settings put secure enabled_accessibility_services "$SVC"; sleep 20
 adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/null
 sleep 8
 adb logcat -c
