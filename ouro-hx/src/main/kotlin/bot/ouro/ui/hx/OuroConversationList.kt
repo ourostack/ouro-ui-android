@@ -97,7 +97,7 @@ fun OuroConversationList(
     unreadLabel: String = "Unread",
     onSelect: (String) -> Unit = {},
     onMore: (String) -> Unit = {},
-    onSectionOpenChange: (String, Boolean) -> Unit = {},
+    onSectionOpenChange: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     val look = Ouro.look
     val c = look.colors
