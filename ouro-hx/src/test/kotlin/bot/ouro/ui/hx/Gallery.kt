@@ -245,6 +245,19 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroItemGroup("Recipes", Modifier.testTag("item-group-case-empty-message"), empty = if (long) LONG else "No recipes yet") {}
                     }
                 }
+                if (only == null || only == "swipe-actions") {
+                    val text = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)
+                    Column(Modifier.testTag("gallery-swipe-actions"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroSwipeActions(
+                            "Lunch plans", Modifier.testTag("swipe-actions-case-trailing-delete"),
+                            trailing = listOf(OuroSwipeAction("Delete") {}, OuroSwipeAction("Archive") {}), tone = OuroTone.Destructive,
+                        ) { BasicText(if (long) LONG else "Lunch plans", style = text) }
+                        OuroSwipeActions(
+                            "Lunch plans", Modifier.testTag("swipe-actions-case-named-actions-button"),
+                            leading = listOf(OuroSwipeAction("Pin") {}), actionsLabel = "More for lunch",
+                        ) { BasicText("Lunch plans", style = text) }
+                    }
+                }
                 if (only == null || only == "tab-bar") {
                     val icon: @Composable () -> Unit = { Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
                     Column(Modifier.testTag("gallery-tab-bar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {

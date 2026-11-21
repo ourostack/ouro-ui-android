@@ -3,6 +3,8 @@
 // must be the one the case gives.
 package bot.ouro.ui.hx
 
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -28,7 +30,7 @@ class ListCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The list components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("item-group")
+        private val components = listOf("item-group", "swipe-actions")
 
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
@@ -66,12 +68,31 @@ class ListCaseTest(private val id: String) {
                     }
                 }
             }
+            "swipe-actions" -> {
+                fun acts(k: String) = if (props.has(k)) props.getString(k).split(", ").map { OuroSwipeAction(it) {} } else emptyList()
+                rule.setContent {
+                    OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                        OuroSwipeActions(
+                            props.getString("label"), leading = acts("leading"), trailing = acts("trailing"),
+                            actionsLabel = props.optString("actionsLabel").ifEmpty { "Actions for ${props.getString("label")}" },
+                            tone = if (props.optString("tone") == "destructive") OuroTone.Destructive else OuroTone.Secondary,
+                        ) { BasicText(slots.getString("content")) }
+                    }
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ListCaseTest.")
         }
         val root = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
         val agent = case.getJSONObject("agent")
         // A collection is a group named by its label; a row is a listitem; plain words are text, never focusable.
-        val tree = if (root.config.contains(SemanticsProperties.CollectionInfo)) {
+        val tree = if (name == "swipe-actions") {
+            JSONObject().put("role", "group").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
+                .put("focusable", false)
+                .put("children", org.json.JSONArray(root.children.map { ch ->
+                    if (ch.config.getOrNull(SemanticsProperties.Role) == Role.Button) JSONObject().put("role", "button").put("name", ch.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
+                    else JSONObject().put("role", "text").put("name", ch.rowWords())
+                }))
+        } else if (root.config.contains(SemanticsProperties.CollectionInfo)) {
             JSONObject().put("role", "group").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
                 .put("focusable", false)
                 .put("children", org.json.JSONArray(root.children.filter { it.config.contains(SemanticsProperties.CollectionItemInfo) }.map { JSONObject().put("role", "listitem").put("name", it.rowWords()) }))
