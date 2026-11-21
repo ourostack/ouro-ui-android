@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -99,16 +100,20 @@ fun OuroMessageList(
     }
     // Read while composing the new list, before it is laid out, so it says where the reader was.
     val wasAtBottom = !scrollable.canScrollForward
-    val lastShown = remember { arrayOf(messages.lastOrNull()?.id) }
-    LaunchedEffect(messages.lastOrNull()?.id) {
+    val shown = remember { arrayOf(messages.firstOrNull()?.id, messages.lastOrNull()?.id) }
+    LaunchedEffect(messages.firstOrNull()?.id, messages.lastOrNull()?.id) {
+        val first = messages.firstOrNull()
         val last = messages.lastOrNull()
-        if (last != null && lastShown[0] != last.id) {
-            lastShown[0] = last.id
-            if (wasAtBottom || last.mine) toEnd()
-        }
+        // Older messages loaded above push a reader who was at the newest message up the list, so bring them back.
+        val newer = last != null && shown[1] != last.id
+        val older = first != null && shown[0] != first.id && !newer
+        shown[0] = first?.id
+        shown[1] = last?.id
+        if ((newer && (wasAtBottom || last!!.mine)) || (older && wasAtBottom && !virtual)) toEnd()
     }
     val previous = remember { arrayOf(messages) }
     var announcement by remember { mutableStateOf("") }
+    var flip by remember { mutableStateOf(false) }
     LaunchedEffect(messages) {
         val before = previous[0]
         previous[0] = messages
@@ -116,7 +121,9 @@ fun OuroMessageList(
         val at = before.lastOrNull()?.let { l -> messages.indexOfFirst { it.id == l.id } } ?: -1
         val arrived = if (at >= 0) messages.drop(at + 1).filter { !it.mine } else emptyList()
         if (arrived.isNotEmpty()) {
-            announcement = arrived.joinToString(". ") { "${it.author}: ${it.text}" }
+            // A zero-width mark that alternates, so the same words twice in a row still change the live region.
+            flip = !flip
+            announcement = arrived.joinToString(". ") { "${it.author}: ${it.text}" } + if (flip) "\u200B" else ""
             arrived.forEach(onNewMessage)
         }
     }
@@ -160,12 +167,12 @@ fun OuroMessageList(
     }
     @Composable
     fun message(m: OuroChatMessage) = OuroMessage(m.author, m.text, role = if (m.mine) OuroMessageRole.User else OuroMessageRole.Assistant, time = m.time.ifBlank { null })
-    BoxWithConstraints(Modifier.semantics { isTraversalGroup = true }) {
+    BoxWithConstraints(modifier.semantics { isTraversalGroup = true }) {
         val bounded = constraints.hasBoundedHeight
         val gap = Arrangement.spacedBy(8.dp, Alignment.Bottom)
         if (virtual) {
             LazyColumn(
-                modifier.fillMaxWidth().then(if (bounded) Modifier else Modifier.heightIn(max = 640.dp)).semantics(properties = root),
+                Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier.heightIn(max = 640.dp)).semantics(properties = root),
                 state = lazy,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = gap,
@@ -175,7 +182,7 @@ fun OuroMessageList(
             }
         } else {
             Column(
-                modifier.fillMaxWidth().semantics(properties = root).verticalScroll(scroll).padding(horizontal = 16.dp, vertical = 8.dp),
+                Modifier.fillMaxWidth().then(if (bounded) Modifier.fillMaxHeight() else Modifier).semantics(properties = root).verticalScroll(scroll).padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = gap,
             ) {
                 if (hasOlder) older()

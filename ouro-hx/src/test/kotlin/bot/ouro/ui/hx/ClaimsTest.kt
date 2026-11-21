@@ -374,8 +374,8 @@ class ClaimsTest {
         under(LIGHT)
         val out = mutableListOf<Pair<Boolean, String>>()
         val tag = "message-list-case-arrivals"
-        fun live(): SemanticsNode? = nodes(kind).firstOrNull { it.tag() == tag }?.parent?.children?.filter { it.config.contains(SemanticsProperties.LiveRegion) }?.singleOrNull()
-        fun said() = live()?.words() ?: "missing"
+        fun live(): SemanticsNode? = nodes(kind).mapNotNull { it.parent }.firstOrNull { it.config.getOrNull(SemanticsProperties.TestTag) == tag }?.children?.filter { it.config.contains(SemanticsProperties.LiveRegion) }?.singleOrNull()
+        fun said() = live()?.words()?.replace("\u200B", "") ?: "missing"
         out += (live()?.config?.getOrNull(SemanticsProperties.LiveRegion) == LiveRegionMode.Polite) to "live region is polite and the only one"
         out += said().isEmpty() to "silent at mount: \"${said()}\""
         val start = reopen
