@@ -28,7 +28,22 @@ adb shell "run-as com.android.talkback cat shared_prefs/com.android.talkback_pre
 adb shell settings put secure enabled_accessibility_services "$SVC"; sleep 20
 adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/null
 sleep 8
-for i in $(seq 1 14); do adb shell input swipe 800 1200 200 1200 150; sleep 3; done
+speak_on_tap() { # <content-desc prefix> <case>
+  adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb pull /sdcard/ui.xml "$EV/ui.xml" > /dev/null 2>&1
+  local xy; xy=$(python3 - "$1" "$EV/ui.xml" <<'PY'
+import re, sys
+for n in re.findall(r'<node [^>]*>', open(sys.argv[2]).read()):
+    d = re.search(r'content-desc="([^"]*)"', n).group(1)
+    if d.startswith(sys.argv[1]):
+        x1, y1, x2, y2 = map(int, re.findall(r'\d+', re.search(r'bounds="([^"]*)"', n).group(1)))
+        print((x1 + x2) // 2, (y1 + y2) // 2); break
+PY
+)
+  adb logcat -c; adb shell input tap $xy; sleep 4
+  adb logcat -d | grep OuroSpoken | sed 's/.*OuroSpoken: //' > "$EV/speech-$2.txt"
+}
+speak_on_tap "Recipe" header; speak_on_tap "Serves" sorted; speak_on_tap "Herb salad" row
+for f in header sorted row; do echo "== $f"; cat "$EV/speech-$f.txt"; done
 { adb shell settings get secure tts_default_synth; adb shell dumpsys activity services bot.ouro.shop; adb shell dumpsys accessibility | head -30; adb shell ps -A | grep -i "talkback\|ouro"; } > "$EV/tts.txt" 2>&1
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
 grep OuroSpoken "$EV/logcat-full.txt" > "$EV/logcat.txt"
