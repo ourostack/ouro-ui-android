@@ -28,8 +28,8 @@ adb shell "run-as com.android.talkback cat shared_prefs/com.android.talkback_pre
 adb shell settings put secure enabled_accessibility_services "$SVC"; sleep 20
 adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/null
 sleep 8
-adb logcat -c
 for i in $(seq 1 14); do adb shell input swipe 800 1200 200 1200 150; sleep 3; done
+{ adb shell settings get secure tts_default_synth; adb shell dumpsys activity services bot.ouro.shop; adb shell dumpsys accessibility | head -30; adb shell ps -A | grep -i "talkback\|ouro"; } > "$EV/tts.txt" 2>&1
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
 grep OuroSpoken "$EV/logcat-full.txt" > "$EV/logcat.txt"
 adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml "$EV/ui.xml" >/dev/null 2>&1
