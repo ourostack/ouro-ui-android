@@ -60,6 +60,8 @@ import bot.ouro.ui.hx.OuroPresentation
 import bot.ouro.ui.hx.OuroSheet
 import bot.ouro.ui.hx.OuroFrame
 import bot.ouro.ui.hx.OuroItem
+import bot.ouro.ui.hx.OuroSortDirection
+import bot.ouro.ui.hx.OuroTable
 import bot.ouro.ui.hx.OuroTheme
 import bot.ouro.ui.hx.OuroTone
 import bot.ouro.ui.hx.OuroVariant
@@ -85,6 +87,7 @@ class MainActivity : ComponentActivity() {
                     when (screen) {
                         "gallery" -> Gallery()
                         "agent" -> AgentScreen()
+                        "table" -> TableScreen()
                         "overlays" -> OverlaysScreen()
                         // A person-only button hands the person to the app's own screen for it: the list, with Place order.
                         "composed" -> ComposedScreen(onHandoff = { screen = "shop" })
@@ -101,6 +104,14 @@ class MainActivity : ComponentActivity() {
             }, 3000)
         }
     }
+}
+
+/** A sortable grid and a sorted one, for TalkBack to read on CI. */
+@Composable
+private fun TableScreen() {
+    val cols = listOf("Recipe", "Time", "Serves")
+    val data = listOf(listOf("Braised short ribs", "4 h", "6"), listOf("Herb salad", "10 min", "2"), listOf("Rye bread", "18 h", "8"))
+    OuroTable("Recipes", cols, data.reversed(), sortable = listOf("Recipe", "Serves"), sortedBy = "Serves", sortDirection = OuroSortDirection.Descending)
 }
 
 @Composable
