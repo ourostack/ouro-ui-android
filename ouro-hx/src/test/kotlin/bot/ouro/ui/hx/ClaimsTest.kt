@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
@@ -40,7 +41,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field", "message", "reaction-bar")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field", "message", "reaction-bar", "message-list")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -54,7 +55,7 @@ class ClaimsTest {
     private var reopen by mutableIntStateOf(0)
 
     // Chat kinds are drawn only on request (see Gallery), so a check on one starts from its own gallery.
-    private val chatKinds = setOf("message", "reaction-bar")
+    private val chatKinds = setOf("message", "reaction-bar", "message-list")
     private var chat: String? = null
 
     private fun under(s: Setting, isLong: Boolean = false, just: String? = null) {
@@ -91,6 +92,7 @@ class ClaimsTest {
         "swipe-actions", "reorderable" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
         "message" -> emptyList()
         "reaction-bar" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) || it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
+        "message-list" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
         else -> listOf(n)
     }
 
@@ -215,6 +217,10 @@ class ClaimsTest {
                         (n.report()["disabled"] == "true" || (x.config.contains(SemanticsActions.OnClick) && x.config.contains(SemanticsProperties.Focused)))
                 }
             }
+            // A collection named by its label that reports its count; each button named and focusable; each message named.
+            "message-list" -> n.name() == n.report()["spoken"] && c.contains(SemanticsProperties.CollectionInfo) && controls(kind, n).all { x ->
+                x.name().isNotBlank() && x.config.contains(SemanticsActions.OnClick) && x.config.contains(SemanticsProperties.Focused)
+            } && n.children.filter { it.config.getOrNull(SemanticsProperties.Role) != Role.Button && it.config.contains(SemanticsProperties.ContentDescription) }.all { it.name().isNotBlank() }
             // A collection named by its label, each row a collection item; or, with no rows, its message as plain text.
             "item-group" -> if (n.report()["empty"] == "true") role == null && !clickable && !focusable && n.words().isNotBlank()
             else c.contains(SemanticsProperties.CollectionInfo) && (n.report()["labelled"] != "true" || n.name().isNotBlank()) &&
@@ -237,6 +243,7 @@ class ClaimsTest {
         val behind = r["behind"] ?: r["surface"]!!
         return listOf("label", "title", "text", "description", "error", "term", "details", "selected", "unselected", "section", "count").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } } +
             listOfNotNull(r["current"]?.let { c -> r["wash"]?.let { Triple("current", c, it) } }) +
+            listOfNotNull(r["jumpText"]?.let { t -> r["jumpFill"]?.let { Triple("jumpText", t, it) } }) +
             listOfNotNull(r["mineText"]?.let { t -> r["mineFill"]?.let { Triple("mineText", t, it) } }) +
             // Words that sit on the page beside a bubble, not on it.
             listOf("meta", "state").mapNotNull { k -> r[k]?.let { Triple(k, it, r["surface"]!!) } } +
@@ -362,6 +369,27 @@ class ClaimsTest {
         return all(out, "$kind panels close from their Close button and offer the dismiss action")
     }
 
+    /** A message from someone else that arrives is announced once, politely; history and the person's own are not. */
+    private fun announceUrgency(kind: String): Result {
+        under(LIGHT)
+        val out = mutableListOf<Pair<Boolean, String>>()
+        val tag = "message-list-case-arrivals"
+        fun live(): SemanticsNode? = nodes(kind).mapNotNull { it.parent }.firstOrNull { it.config.getOrNull(SemanticsProperties.TestTag) == tag }?.children?.filter { it.config.contains(SemanticsProperties.LiveRegion) }?.singleOrNull()
+        fun said() = live()?.words()?.replace("\u200B", "") ?: "missing"
+        out += (live()?.config?.getOrNull(SemanticsProperties.LiveRegion) == LiveRegionMode.Polite) to "live region is polite and the only one"
+        out += said().isEmpty() to "silent at mount: \"${said()}\""
+        val start = reopen
+        var last = ""
+        for (k in start + 1..start + 2) {
+            reopen = k
+            rule.waitForIdle()
+            if (k % 2 == 1) last = "Ana: Ping $k"
+            val now = said()
+            out += (now == last) to "arrival $k said \"$now\", expected \"$last\""
+        }
+        return all(out, "$kind announces others' arrivals once, politely, and never history or the person's own")
+    }
+
     private val checks: Map<String, (String) -> Result> = mapOf(
         "name.spoken" to ::nameSpoken,
         "target.touch" to ::targetTouch,
@@ -369,6 +397,7 @@ class ClaimsTest {
         "text.reflows" to ::textReflows,
         "contrast.text" to ::contrastText,
         "dismiss.reachable" to ::dismissReachable,
+        "announce.urgency" to ::announceUrgency,
     )
 
     @Test

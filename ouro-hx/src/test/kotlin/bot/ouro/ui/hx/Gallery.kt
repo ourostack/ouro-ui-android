@@ -280,6 +280,31 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroMessage("Ouro", if (long) LONG else "Ana joined the conversation.", Modifier.testTag("message-case-system"), role = OuroMessageRole.System)
                     }
                 }
+                if (only == "message-list") {
+                    Column(Modifier.testTag("gallery-message-list"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroMessageList(
+                            "Conversation with Ana",
+                            listOf(
+                                OuroChatMessage("a", "Ana", "9:41", if (long) LONG else "See you at noon."),
+                                OuroChatMessage("b", "You", "9:42", if (long) LONG else "On my way.", mine = true),
+                            ),
+                            Modifier.testTag("message-list-case-two-messages"),
+                        )
+                        OuroMessageList(
+                            "Team chat",
+                            listOf(OuroChatMessage("a", "Ana", "9:41", if (long) LONG else "Morning.")),
+                            Modifier.testTag("message-list-case-older-available"),
+                            hasOlder = true,
+                        )
+                        OuroMessageList(
+                            "Live chat",
+                            // Only the newest three stay, so the list never outgrows its view however many arrivals a run makes.
+                            (listOf(OuroChatMessage("h1", "Ana", "9:00", "Hello."), OuroChatMessage("h2", "You", "9:01", "Hi.", mine = true)) +
+                                (1..reopen).map { k -> OuroChatMessage("n$k", if (k % 2 == 1) "Ana" else "You", "9:0${(2 + k) % 10}", if (k % 2 == 1) "Ping $k" else "Pong $k", mine = k % 2 == 0) }).takeLast(3),
+                            Modifier.testTag("message-list-case-arrivals"),
+                        )
+                    }
+                }
                 if (only == "reaction-bar") {
                     Column(Modifier.testTag("gallery-reaction-bar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         val like = OuroReaction("like", "👍", "Like", 3, mine = true)

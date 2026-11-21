@@ -30,7 +30,7 @@ class ChatCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The chat components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("message", "reaction-bar")
+        private val components = listOf("message", "reaction-bar", "message-list")
 
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
@@ -87,13 +87,33 @@ class ChatCaseTest(private val id: String) {
                     )
                 }
             }
+            "message-list" -> rule.setContent {
+                OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                    OuroMessageList(
+                        props.getString("label"),
+                        // "id: author | time | text | mine", one per "; ".
+                        slots.optString("messages").split("; ").filter { it.isNotBlank() }.map { line ->
+                            val (id, rest) = line.split(": ", limit = 2)
+                            val f = rest.split(" | ")
+                            OuroChatMessage(id, f[0], f[1], f[2], mine = f.getOrNull(3) == "mine")
+                        },
+                        hasOlder = props.optBoolean("hasOlder"),
+                    )
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ChatCaseTest.")
         }
         val root = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
         val agent = case.getJSONObject("agent")
         fun SemanticsNode.within(): List<SemanticsNode> = listOf(this) + children.flatMap { it.within() }
         fun SemanticsNode.cd() = config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: ""
-        val tree = if (name == "reaction-bar") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
+        val tree = if (name == "message-list") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
+            "children",
+            JSONArray(
+                root.children.filter { it.cd().isNotBlank() }
+                    .map { JSONObject().put("role", if (it.config.getOrNull(SemanticsProperties.Role) == Role.Button) "button" else "listitem").put("name", it.cd()) },
+            ),
+        ) else if (name == "reaction-bar") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
             "children",
             JSONArray(
                 root.children.flatMap { it.within() }
