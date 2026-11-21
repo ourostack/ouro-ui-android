@@ -280,6 +280,19 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroMessage("Ouro", if (long) LONG else "Ana joined the conversation.", Modifier.testTag("message-case-system"), role = OuroMessageRole.System)
                     }
                 }
+                if (only == "composer") {
+                    Column(Modifier.testTag("gallery-composer"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroComposer(
+                            "Message Mia", "", {}, {}, Modifier.testTag("composer-case-empty"),
+                            placeholder = if (long) LONG else "Write a message",
+                        )
+                        OuroComposer(
+                            "Reply in thread", if (long) LONG else "", {}, {}, Modifier.testTag("composer-case-sending-off"),
+                            sendDisabledReason = if (long) LONG else "You're offline. Sending resumes when you reconnect.",
+                        )
+                        OuroComposer("Message Mia", if (long) LONG else "On my way.", {}, {}, Modifier.testTag("composer-case-sending"), sending = true)
+                    }
+                }
                 if (only == "message-list") {
                     Column(Modifier.testTag("gallery-message-list"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         OuroMessageList(
