@@ -103,6 +103,7 @@ jobs:
           path: build/maven
 
   talkback:
+    # TalkBack itself, built from source, reads Table on an emulator; a recording speech engine in the sample captures what it says.
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
