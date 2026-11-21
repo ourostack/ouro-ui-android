@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug builds only: a text-to-speech engine that records what a screen reader sends it, so CI can assert TalkBack's own speech. -->
+        <service
+            android:name=".speech.RecordingTtsService"
+            android:exported="true"
+            android:label="Recording speech">
+            <intent-filter>
+                <action android:name="android.intent.action.TTS_SERVICE" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
+    </application>
+</manifest>

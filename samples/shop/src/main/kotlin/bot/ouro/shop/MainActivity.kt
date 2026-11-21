@@ -12,7 +12,19 @@ import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.os.Build
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Bundle
+import android.view.View
+import android.view.ViewGroup
+import android.view.accessibility.AccessibilityNodeInfo
+import androidx.compose.ui.node.RootForTest
+import androidx.compose.ui.InternalComposeUiApi
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.core.view.drawToBitmap
 import java.io.File
 import androidx.activity.ComponentActivity
@@ -60,6 +72,8 @@ import bot.ouro.ui.hx.OuroPresentation
 import bot.ouro.ui.hx.OuroSheet
 import bot.ouro.ui.hx.OuroFrame
 import bot.ouro.ui.hx.OuroItem
+import bot.ouro.ui.hx.OuroSortDirection
+import bot.ouro.ui.hx.OuroTable
 import bot.ouro.ui.hx.OuroTheme
 import bot.ouro.ui.hx.OuroTone
 import bot.ouro.ui.hx.OuroVariant
@@ -85,6 +99,7 @@ class MainActivity : ComponentActivity() {
                     when (screen) {
                         "gallery" -> Gallery()
                         "agent" -> AgentScreen()
+                        "table" -> TableScreen()
                         "overlays" -> OverlaysScreen()
                         // A person-only button hands the person to the app's own screen for it: the list, with Place order.
                         "composed" -> ComposedScreen(onHandoff = { screen = "shop" })
@@ -100,7 +115,37 @@ class MainActivity : ComponentActivity() {
                 File(filesDir, "photo.png").outputStream().use { picture.compress(Bitmap.CompressFormat.PNG, 100, it) }
             }, 3000)
         }
+        // CI moves TalkBack's focus the way a person's swipe does, by asking the view for accessibility focus on a node.
+        if (intent.getStringExtra("screen") == "table" && (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
+            val receiver = object : BroadcastReceiver() {
+                override fun onReceive(context: Context, received: Intent) {
+                    received.getStringExtra("name")?.let { focusNode(window.decorView, it) }
+                }
+            }
+            androidx.core.content.ContextCompat.registerReceiver(this, receiver, IntentFilter("bot.ouro.shop.FOCUS"), androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
+        }
     }
+}
+
+@OptIn(InternalComposeUiApi::class)
+private fun focusNode(decor: View, prefix: String) {
+    fun root(view: View): RootForTest? =
+        view as? RootForTest ?: (view as? ViewGroup)?.let { group -> (0 until group.childCount).firstNotNullOfOrNull { root(group.getChildAt(it)) } }
+    fun find(node: SemanticsNode): SemanticsNode? =
+        if (node.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()?.let { it == prefix || it.startsWith("$prefix,") } == true) node
+        else node.children.firstNotNullOfOrNull { find(it) }
+    val host = root(decor) ?: run { android.util.Log.i("OuroFocus", "no root"); return }
+    val target = find(host.semanticsOwner.rootSemanticsNode) ?: run { android.util.Log.i("OuroFocus", "no node for $prefix"); return }
+    val done = (host as View).accessibilityNodeProvider?.performAction(target.id, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+    android.util.Log.i("OuroFocus", "$prefix -> ${target.config.getOrNull(SemanticsProperties.ContentDescription)} id=${target.id} done=$done")
+}
+
+/** A sortable grid and a sorted one, for TalkBack to read on CI. */
+@Composable
+private fun TableScreen() {
+    val cols = listOf("Recipe", "Time", "Serves")
+    val data = listOf(listOf("Braised short ribs", "4 h", "6"), listOf("Herb salad", "10 min", "2"), listOf("Rye bread", "18 h", "8"))
+    OuroTable("Recipes", cols, data.reversed(), sortable = listOf("Recipe", "Serves"), sortedBy = "Serves", sortDirection = OuroSortDirection.Descending)
 }
 
 @Composable
