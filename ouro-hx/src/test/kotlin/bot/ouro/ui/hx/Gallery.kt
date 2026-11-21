@@ -298,8 +298,9 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         )
                         OuroMessageList(
                             "Live chat",
-                            listOf(OuroChatMessage("h1", "Ana", "9:00", "Hello."), OuroChatMessage("h2", "You", "9:01", "Hi.", mine = true)) +
-                                (1..reopen).map { k -> OuroChatMessage("n$k", if (k % 2 == 1) "Ana" else "You", "9:0${(2 + k) % 10}", if (k % 2 == 1) "Ping $k" else "Pong $k", mine = k % 2 == 0) },
+                            // Only the newest three stay, so the list never outgrows its view however many arrivals a run makes.
+                            (listOf(OuroChatMessage("h1", "Ana", "9:00", "Hello."), OuroChatMessage("h2", "You", "9:01", "Hi.", mine = true)) +
+                                (1..reopen).map { k -> OuroChatMessage("n$k", if (k % 2 == 1) "Ana" else "You", "9:0${(2 + k) % 10}", if (k % 2 == 1) "Ping $k" else "Pong $k", mine = k % 2 == 0) }).takeLast(3),
                             Modifier.testTag("message-list-case-arrivals"),
                         )
                     }
