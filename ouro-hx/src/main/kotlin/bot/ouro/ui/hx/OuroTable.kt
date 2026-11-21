@@ -9,6 +9,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,6 +55,7 @@ import androidx.compose.ui.unit.sp
 enum class OuroSortDirection { Ascending, Descending }
 
 private val TableColumnWidth = 160.dp
+private val TableColumnFloor = 64.dp
 private val TableStickyHeight = 320.dp
 
 /**
@@ -121,17 +123,19 @@ fun OuroTable(
                 style = TextStyle(color = text, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Medium),
             )
         }
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val colW = minOf(TableColumnWidth, maxOf(maxWidth / columns.size, TableColumnFloor))
         Column(Modifier.fillMaxWidth().horizontalScroll(scroll)) {
             Row {
                 columns.forEachIndexed { i, name ->
-                    HeaderCell(name, i, name in sortable, name == sortedBy, sortDirection, sortedLabel, text, onSort)
+                    HeaderCell(name, i, colW, name in sortable, name == sortedBy, sortDirection, sortedLabel, text, onSort)
                 }
             }
             val body: @Composable () -> Unit = {
                 if (rows.isEmpty()) {
                     BasicText(
                         empty,
-                        Modifier.width(TableColumnWidth * columns.size).padding(16.dp).semantics {
+                        Modifier.width(colW * columns.size).padding(16.dp).semantics {
                             collectionItemInfo = CollectionItemInfo(rowIndex = 1, rowSpan = 1, columnIndex = 0, columnSpan = columns.size)
                         },
                         style = TextStyle(color = quiet, fontSize = 14.sp, lineHeight = 20.sp),
@@ -139,7 +143,7 @@ fun OuroTable(
                 } else {
                     rows.forEachIndexed { r, cells ->
                         val shaded = striped && r % 2 == 1
-                        TableRow(cells, r, if (shaded) onStripe else text, if (shaded) stripe else null, rowHeight, onRowPress)
+                        TableRow(cells, r, colW, if (shaded) onStripe else text, if (shaded) stripe else null, rowHeight, onRowPress)
                     }
                 }
             }
@@ -149,6 +153,7 @@ fun OuroTable(
                 body()
             }
         }
+        }
     }
 }
 
@@ -156,6 +161,7 @@ fun OuroTable(
 private fun HeaderCell(
     name: String,
     index: Int,
+    width: Dp,
     sortable: Boolean,
     sorted: Boolean,
     direction: OuroSortDirection,
@@ -169,7 +175,7 @@ private fun HeaderCell(
     val focused by interaction.collectIsFocusedAsState()
     val word = if (direction == OuroSortDirection.Ascending) "ascending" else "descending"
     val spoken = if (sorted) "$name, $sortedLabel $word" else name
-    val base = Modifier.width(TableColumnWidth)
+    val base = Modifier.width(width)
     val info = CollectionItemInfo(rowIndex = 0, rowSpan = 1, columnIndex = index, columnSpan = 1)
     val modifier = if (sortable) {
         base
@@ -205,6 +211,7 @@ private fun HeaderCell(
 private fun TableRow(
     cells: List<String>,
     index: Int,
+    width: Dp,
     color: androidx.compose.ui.graphics.Color,
     wash: androidx.compose.ui.graphics.Color?,
     height: Dp,
@@ -241,7 +248,7 @@ private fun TableRow(
             val cellInfo = CollectionItemInfo(rowIndex = index + 1, rowSpan = 1, columnIndex = col, columnSpan = 1)
             BasicText(
                 cell,
-                Modifier.width(TableColumnWidth).padding(horizontal = 16.dp, vertical = 8.dp)
+                Modifier.width(width).padding(horizontal = 16.dp, vertical = 8.dp)
                     .then(if (linked) Modifier.clearAndSetSemantics {} else Modifier.semantics { collectionItemInfo = cellInfo }),
                 style = TextStyle(color = color, fontSize = 14.sp, lineHeight = 20.sp),
             )

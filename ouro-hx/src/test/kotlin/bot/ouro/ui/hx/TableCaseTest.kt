@@ -69,7 +69,8 @@ class TableCaseTest(private val id: String) {
         }
         val root = rule.onAllNodes(kindIs("table")).fetchSemanticsNodes().single()
         val tree = JSONObject().put("role", "group").put("name", root.described() ?: "").put("focusable", false)
-            .put("children", org.json.JSONArray(root.children.map { ch ->
+            .put("children", org.json.JSONArray(root.children.flatMap { if (it.config.contains(SemanticsProperties.CollectionItemInfo)) listOf(it) else it.children }
+                .filter { it.config.contains(SemanticsProperties.CollectionItemInfo) }.map { ch ->
                 val role = ch.config.getOrNull(SemanticsProperties.Role)
                 val name = ch.described() ?: ch.words()
                 val kind = when {
