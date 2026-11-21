@@ -315,7 +315,7 @@ class ClaimsTest {
             val rb = root.boundsInRoot
             val inComponent = b.left >= rb.left - 1 && b.right <= rb.right + 1 && b.top >= rb.top - 1 && b.bottom <= rb.bottom + 1
             val ok = inBox && inComponent && (text != LONG || l!!.lineCount > 1)
-            ok to "\"${text.take(24)}\": ${l?.lineCount} lines, widest ${"%.0f".format(widest)} of ${t.size.width} px, inside its ${kind} $inComponent"
+            ok to "\"${text.take(24)}\": ${l?.lineCount} lines, widest ${"%.0f".format(widest)} of ${t.size.width} px, inside its ${kind} $inComponent${if (inComponent) "" else " (text $b in $rb)"}"
         }
         under(LIGHT)
         return all(checks, "$kind texts at 200% in a 240 dp column wrap, none clipped")
