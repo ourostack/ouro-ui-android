@@ -134,8 +134,8 @@ private fun focusNode(decor: View, prefix: String) {
     fun find(node: SemanticsNode): SemanticsNode? =
         if (node.config.getOrNull(SemanticsProperties.ContentDescription)?.firstOrNull()?.let { it == prefix || it.startsWith("$prefix,") } == true) node
         else node.children.firstNotNullOfOrNull { find(it) }
-    val host = root(decor) ?: return android.util.Log.i("OuroFocus", "no root")
-    val target = find(host.semanticsOwner.rootSemanticsNode) ?: return android.util.Log.i("OuroFocus", "no node for $prefix")
+    val host = root(decor) ?: run { android.util.Log.i("OuroFocus", "no root"); return }
+    val target = find(host.semanticsOwner.rootSemanticsNode) ?: run { android.util.Log.i("OuroFocus", "no node for $prefix"); return }
     val done = (host as View).accessibilityNodeProvider?.performAction(target.id, AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
     android.util.Log.i("OuroFocus", "$prefix -> ${target.config.getOrNull(SemanticsProperties.ContentDescription)} id=${target.id} done=$done")
 }
