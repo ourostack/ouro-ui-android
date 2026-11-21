@@ -10,6 +10,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsNode
 import org.json.JSONArray
 import org.json.JSONObject
@@ -30,7 +31,7 @@ class ChatCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The chat components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("message", "reaction-bar", "message-list")
+        private val components = listOf("message", "reaction-bar", "message-list", "composer")
 
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
@@ -101,13 +102,38 @@ class ChatCaseTest(private val id: String) {
                     )
                 }
             }
+            "composer" -> rule.setContent {
+                OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                    OuroComposer(
+                        props.getString("label"),
+                        value = slots.optString("value"),
+                        onValueChange = {},
+                        onSend = {},
+                        placeholder = props.optString("placeholder").ifEmpty { null },
+                        sending = props.optBoolean("sending"),
+                        sendDisabledReason = props.optString("sendDisabledReason").ifEmpty { null },
+                    )
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ChatCaseTest.")
         }
         val root = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
         val agent = case.getJSONObject("agent")
         fun SemanticsNode.within(): List<SemanticsNode> = listOf(this) + children.flatMap { it.within() }
         fun SemanticsNode.cd() = config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: ""
-        val tree = if (name == "message-list") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
+        val tree = if (name == "composer") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
+            "children",
+            JSONArray(
+                root.children.flatMap { it.within() }.filter { !it.config.contains(SemanticsProperties.LiveRegion) && (it.config.contains(SemanticsActions.SetText) || it.config.getOrNull(SemanticsProperties.Role) == Role.Button || it.config.contains(SemanticsProperties.Text)) }
+                    .map {
+                        when {
+                            it.config.contains(SemanticsActions.SetText) -> JSONObject().put("role", "textbox").put("name", it.cd())
+                            it.config.getOrNull(SemanticsProperties.Role) == Role.Button -> JSONObject().put("role", "button").put("name", it.cd())
+                            else -> JSONObject().put("role", "text").put("name", it.config[SemanticsProperties.Text].joinToString(" ") { t -> t.text })
+                        }
+                    },
+            ),
+        ) else if (name == "message-list") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
             "children",
             JSONArray(
                 root.children.filter { it.cd().isNotBlank() }
