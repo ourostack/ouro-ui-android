@@ -184,7 +184,7 @@ fun OuroReorderable(
                         .fillMaxWidth()
                         .onSizeChanged { heights[row.id] = it.height }
                         .zIndex(if (isLifted) 1f else 0f)
-                        .graphicsLayer { translationY = if (isLifted) offset else slide }
+                        .graphicsLayer { translationY = if (isLifted) offset else if (lifted == null) 0f else slide }
                         .background(if (isLifted) c.accent else under)
                         .pointerInput(row.id, locked) {
                             if (!locked) detectDragGesturesAfterLongPress(
