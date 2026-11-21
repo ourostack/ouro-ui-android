@@ -58,6 +58,7 @@ const MAP = {
   "vendor/core/components/reaction-bar.spec.json": "dist/hx/components/reaction-bar.spec.json",
   "vendor/core/components/message-list.spec.json": "dist/hx/components/message-list.spec.json",
   "vendor/core/components/composer.spec.json": "dist/hx/components/composer.spec.json",
+  "vendor/core/components/table.spec.json": "dist/hx/components/table.spec.json",
   "vendor/core/composed/catalog.json": "dist/hx/a2ui/catalog.json",
   "vendor/core/composed/recipe.catalog.json": "standard/hx/a2ui/conformance/recipe.catalog.json",
   "vendor/core/composed/cases/": "standard/hx/a2ui/conformance/cases/",

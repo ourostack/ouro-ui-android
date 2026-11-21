@@ -41,7 +41,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field", "message", "reaction-bar", "message-list", "composer")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field", "message", "reaction-bar", "message-list", "composer", "table")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -55,7 +55,7 @@ class ClaimsTest {
     private var reopen by mutableIntStateOf(0)
 
     // Chat kinds are drawn only on request (see Gallery), so a check on one starts from its own gallery.
-    private val chatKinds = setOf("message", "reaction-bar", "message-list", "composer")
+    private val chatKinds = setOf("message", "reaction-bar", "message-list", "composer", "table")
     private var chat: String? = null
 
     private fun under(s: Setting, isLong: Boolean = false, just: String? = null) {
@@ -93,7 +93,7 @@ class ClaimsTest {
         "message" -> emptyList()
         "reaction-bar" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) || it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
         "composer" -> n.within().filter { it.config.contains(SemanticsActions.SetText) || it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
-        "message-list" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
+        "message-list", "table" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button && it.config.contains(SemanticsActions.OnClick) }
         else -> listOf(n)
     }
 
@@ -208,6 +208,10 @@ class ClaimsTest {
                 buttons.size == n.report()["rows"]!!.toInt() && rows.size == buttons.size && rows.all { x -> x.config.contains(SemanticsProperties.Focused) && x.config.contains(SemanticsProperties.Selected) && x.name().isNotBlank() } &&
                     rows.count { it.config.getOrNull(SemanticsProperties.Selected) == true } <= 1
             }
+            // A collection named by its caption, with a header per column and a row per entry; sorting headers and linked rows are named buttons that press and take focus.
+            "table" -> c.contains(SemanticsProperties.CollectionInfo) && n.name().isNotBlank() && controls(kind, n).let { cs ->
+                cs.all { x -> x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() && x.config.contains(SemanticsProperties.CollectionItemInfo) }
+            }
             // One node: the phrase "author, time, text, state" as its description, with nothing to press or focus.
             "message" -> role == null && !clickable && !focusable && n.name() == n.report()["spoken"] && n.name().isNotBlank()
             // A group named by its label; each pill a checkbox-role toggle named "Like, 3" (or the add button), pressable unless disabled.
@@ -258,6 +262,7 @@ class ClaimsTest {
             listOfNotNull(r["mineText"]?.let { t -> r["mineFill"]?.let { Triple("mineText", t, it) } }) +
             // Words that sit on the page beside a bubble, not on it.
             listOf("meta", "state").mapNotNull { k -> r[k]?.let { Triple(k, it, r["surface"]!!) } } +
+            listOfNotNull(r["stripeText"]?.let { t -> r["stripe"]?.let { Triple("stripeText", t, it) } }) +
             listOfNotNull(r["badge"]?.let { c -> r["badgeWash"]?.let { Triple("badge", c, it) } })
     }
 

@@ -41,7 +41,7 @@ class SnapshotTest {
         var setting by mutableStateOf(LIGHT)
         var kind by mutableStateOf("message")
         rule.setContent { Gallery(setting, only = kind) }
-        for (k in listOf("message", "reaction-bar", "message-list", "composer")) for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
+        for (k in listOf("message", "reaction-bar", "message-list", "composer", "table")) for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
             kind = k
             setting = s
             rule.waitForIdle()
