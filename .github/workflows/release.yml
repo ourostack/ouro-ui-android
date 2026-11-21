@@ -3,9 +3,13 @@ name: Release
 # Push a tag vX.Y.Z that matches gradle.properties' ouro.version (RELEASING.md). This runs the tests, builds the
 # libraries' Maven files, attaches them to the GitHub release with the notes in docs/releases/vX.Y.Z.md, and publishes
 # every release's Maven files as a static Maven repository on GitHub Pages, which needs no sign-in to read.
+# The Pages work is its own jobs, so a deploy that fails (GitHub has twice not shown the uploaded artifact to
+# deploy-pages in time, at v0.9.0 and v0.11.0) is rerun alone, without making the release again. Run the workflow by
+# hand on main to rebuild the site from the releases that exist and deploy it.
 on:
   push:
     tags: ["v*.*.*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -20,11 +24,9 @@ concurrency:
 
 jobs:
   release:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment:
-      name: github-pages
-      url: ${{ steps.pages.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
       - name: The tag matches ouro.version and has notes
@@ -54,23 +56,43 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" --verify-tag --title "Ouro UI for Android $GITHUB_REF_NAME" \
-            --notes-file "docs/releases/$GITHUB_REF_NAME.md" \
-            "ouro-ui-android-$GITHUB_REF_NAME-maven.zip" ./*.aar ./*.pom
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            echo "The release $GITHUB_REF_NAME already exists, so it is kept as it is."
+          else
+            gh release create "$GITHUB_REF_NAME" --verify-tag --title "Ouro UI for Android $GITHUB_REF_NAME" \
+              --notes-file "docs/releases/$GITHUB_REF_NAME.md" \
+              "ouro-ui-android-$GITHUB_REF_NAME-maven.zip" ./*.aar ./*.pom
+          fi
+
+  # Every release's Maven files, as one repository. Runs after a release, or alone by hand.
+  site:
+    needs: release
+    if: ${{ !cancelled() && (needs.release.result == 'success' || needs.release.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
       - name: Every release's Maven files, as one repository
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           mkdir -p site/maven old
           for tag in $(gh release list --limit 100 --json tagName --jq '.[].tagName'); do
             gh release download "$tag" --pattern "ouro-ui-android-$tag-maven.zip" --dir old || true
           done
           for z in old/*.zip; do [ -f "$z" ] && unzip -qo "$z" -d site/maven; done
-          cp -R build/maven/. site/maven/
           printf '<!doctype html><meta charset="utf-8"><title>Ouro UI for Android</title><p>Maven repository for <a href="https://github.com/ourostack/ouro-ui-android">ouro-ui-android</a>: <code>maven { url = uri("https://ourostack.github.io/ouro-ui-android/maven") }</code></p>\n' > site/index.html
-      - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site
+
+  deploy:
+    needs: site
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.pages.outputs.page_url }}
+    steps:
       - id: pages
         uses: actions/deploy-pages@v4
