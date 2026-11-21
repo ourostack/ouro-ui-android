@@ -81,6 +81,19 @@ jobs:
             gh release download "$tag" --pattern "ouro-ui-android-$tag-maven.zip" --dir old || true
           done
           for z in old/*.zip; do [ -f "$z" ] && unzip -qo "$z" -d site/maven; done
+          # Each zip carries a maven-metadata.xml that lists only its own version, so write one per artifact that lists them all.
+          for dir in site/maven/bot/ouro/ui/*/; do
+            artifact="$(basename "$dir")"
+            versions="$(ls "$dir" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$' | sort -V)"
+            latest="$(echo "$versions" | tail -1)"
+            rm -f "$dir"/maven-metadata.xml*
+            {
+              echo '<?xml version="1.0" encoding="UTF-8"?>'
+              echo "<metadata><groupId>bot.ouro.ui</groupId><artifactId>$artifact</artifactId><versioning><latest>$latest</latest><release>$latest</release><versions>"
+              for v in $versions; do echo "<version>$v</version>"; done
+              echo "</versions><lastUpdated>$(date -u +%Y%m%d%H%M%S)</lastUpdated></versioning></metadata>"
+            } > "$dir/maven-metadata.xml"
+          done
           printf '<!doctype html><meta charset="utf-8"><title>Ouro UI for Android</title><p>Maven repository for <a href="https://github.com/ourostack/ouro-ui-android">ouro-ui-android</a>: <code>maven { url = uri("https://ourostack.github.io/ouro-ui-android/maven") }</code></p>\n' > site/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
