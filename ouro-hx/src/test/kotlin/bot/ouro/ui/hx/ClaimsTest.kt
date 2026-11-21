@@ -40,7 +40,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field", "message")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -53,10 +53,14 @@ class ClaimsTest {
     private var only by mutableStateOf<String?>(null)
     private var reopen by mutableIntStateOf(0)
 
+    // Chat kinds are drawn only on request (see Gallery), so a check on one starts from its own gallery.
+    private val chatKinds = setOf("message")
+    private var chat: String? = null
+
     private fun under(s: Setting, isLong: Boolean = false, just: String? = null) {
         setting = s
         long = isLong
-        only = just
+        only = just ?: chat
         rule.waitForIdle()
     }
 
@@ -85,6 +89,7 @@ class ClaimsTest {
         "item-group" -> listOf(n)
         "conversation-list" -> if (n.report()["empty"] == "true") listOf(n) else n.within().filter { it.config.contains(SemanticsActions.OnClick) }
         "swipe-actions", "reorderable" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
+        "message" -> emptyList()
         else -> listOf(n)
     }
 
@@ -199,6 +204,8 @@ class ClaimsTest {
                 buttons.size == n.report()["rows"]!!.toInt() && rows.size == buttons.size && rows.all { x -> x.config.contains(SemanticsProperties.Focused) && x.config.contains(SemanticsProperties.Selected) && x.name().isNotBlank() } &&
                     rows.count { it.config.getOrNull(SemanticsProperties.Selected) == true } <= 1
             }
+            // One node: the phrase "author, time, text, state" as its description, with nothing to press or focus.
+            "message" -> role == null && !clickable && !focusable && n.name() == n.report()["spoken"] && n.name().isNotBlank()
             // A collection named by its label, each row a collection item; or, with no rows, its message as plain text.
             "item-group" -> if (n.report()["empty"] == "true") role == null && !clickable && !focusable && n.words().isNotBlank()
             else c.contains(SemanticsProperties.CollectionInfo) && (n.report()["labelled"] != "true" || n.name().isNotBlank()) &&
@@ -221,6 +228,8 @@ class ClaimsTest {
         val behind = r["behind"] ?: r["surface"]!!
         return listOf("label", "title", "text", "description", "error", "term", "details", "selected", "unselected", "section").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } } +
             listOfNotNull(r["current"]?.let { c -> r["wash"]?.let { Triple("current", c, it) } }) +
+            // Words that sit on the page beside a bubble, not on it.
+            listOf("meta", "state").mapNotNull { k -> r[k]?.let { Triple(k, it, r["surface"]!!) } } +
             listOfNotNull(r["badge"]?.let { c -> r["badgeWash"]?.let { Triple("badge", c, it) } })
     }
 
@@ -361,6 +370,9 @@ class ClaimsTest {
         val rows = mutableListOf<Triple<String, String, Result>>()
         for (spec in specs.sortedBy { kit.indexOf(it.getString("name")) }) {
             val kind = spec.getString("name")
+            chat = if (kind in chatKinds) kind else null
+            only = chat
+            rule.waitForIdle()
             val claims = spec.getJSONArray("claims")
             for (i in 0 until claims.length()) {
                 val claim = claims.getString(i)
