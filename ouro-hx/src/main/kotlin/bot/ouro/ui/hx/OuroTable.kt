@@ -135,9 +135,9 @@ fun OuroTable(
                 if (rows.isEmpty()) {
                     BasicText(
                         empty,
-                        Modifier.width(colW * columns.size).padding(16.dp).semantics {
+                        Modifier.width(colW * columns.size).semantics {
                             collectionItemInfo = CollectionItemInfo(rowIndex = 1, rowSpan = 1, columnIndex = 0, columnSpan = columns.size)
-                        },
+                        }.padding(16.dp),
                         style = TextStyle(color = quiet, fontSize = 14.sp, lineHeight = 20.sp),
                     )
                 } else {
