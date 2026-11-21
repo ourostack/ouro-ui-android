@@ -124,7 +124,7 @@ class ChatCaseTest(private val id: String) {
         val tree = if (name == "composer") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
             "children",
             JSONArray(
-                root.children.filter { !it.config.contains(SemanticsProperties.LiveRegion) && (it.config.contains(SemanticsActions.SetText) || it.config.getOrNull(SemanticsProperties.Role) == Role.Button || it.config.contains(SemanticsProperties.Text)) }
+                root.children.flatMap { it.within() }.filter { !it.config.contains(SemanticsProperties.LiveRegion) && (it.config.contains(SemanticsActions.SetText) || it.config.getOrNull(SemanticsProperties.Role) == Role.Button || it.config.contains(SemanticsProperties.Text)) }
                     .map {
                         when {
                             it.config.contains(SemanticsActions.SetText) -> JSONObject().put("role", "textbox").put("name", it.cd())
