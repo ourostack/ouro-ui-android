@@ -9,6 +9,9 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.printToString
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsNode
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -27,7 +30,7 @@ class ChatCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The chat components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("message")
+        private val components = listOf("message", "reaction-bar")
 
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
@@ -68,12 +71,38 @@ class ChatCaseTest(private val id: String) {
                     )
                 }
             }
+            "reaction-bar" -> rule.setContent {
+                OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                    OuroReactionBar(
+                        // "key: emoji | name | count | mine", one per "; ".
+                        slots.optString("reactions").split("; ").filter { it.isNotBlank() }.map { line ->
+                            val (key, rest) = line.split(": ", limit = 2)
+                            val f = rest.split(" | ")
+                            OuroReaction(key, f[0], f[1], f[2].toInt(), mine = f.getOrNull(3) == "mine")
+                        },
+                        onReact = {},
+                        label = props.optString("label", "Reactions"),
+                        disabled = props.optBoolean("disabled"),
+                        showMore = props.optBoolean("showMore"),
+                    )
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ChatCaseTest.")
         }
         val root = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
         val agent = case.getJSONObject("agent")
+        fun SemanticsNode.within(): List<SemanticsNode> = listOf(this) + children.flatMap { it.within() }
+        fun SemanticsNode.cd() = config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: ""
+        val tree = if (name == "reaction-bar") JSONObject().put("role", "group").put("name", root.cd()).put("focusable", false).put(
+            "children",
+            JSONArray(
+                root.children.flatMap { it.within() }
+                    .filter { it.config.getOrNull(SemanticsProperties.Role).let { r -> r == Role.Checkbox || r == Role.Button } }
+                    .map { JSONObject().put("role", "button").put("name", it.cd()) },
+            ),
+        ) else
         // A message is one list item named by its phrase; it is never focusable.
-        val tree = JSONObject().put("role", "listitem").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
+        JSONObject().put("role", "listitem").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
             .put("focusable", root.config.contains(SemanticsProperties.Focused))
         assertEquals(id + "\n" + rule.onRoot().printToString(), agent.toString(), tree.toString())
     }
