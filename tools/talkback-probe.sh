@@ -37,7 +37,7 @@ check() { # <case> <expected phrase>
   else echo "TalkBack case $1: FAIL expected \"$2\""; status=1; fi
 }
 check header "Recipe, Column heading"
-check sorted "Serves, sorted descending"
+check sorted "Serves, sorted ascending"
 check row "Herb salad, 10 min, 2, Row 3"
 for f in header sorted row; do echo "== $f"; cat "$EV/speech-$f.txt"; done
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
