@@ -30,9 +30,22 @@ class SnapshotTest {
         for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
             setting = s
             rule.waitForIdle()
-            for (kind in listOf("button", "badge", "card", "item", "checkbox", "text-field", "select", "switch", "field", "separator", "description-list", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "message")) {
+            for (kind in listOf("button", "badge", "card", "item", "checkbox", "text-field", "select", "switch", "field", "separator", "description-list", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list")) {
                 rule.onNodeWithTag("gallery-$kind").captureRoboImage("src/test/snapshots/$kind-${s.id}.png")
             }
+        }
+    }
+
+    @Test
+    fun chat_components_in_light_dark_increased_contrast_and_large_text() {
+        var setting by mutableStateOf(LIGHT)
+        var kind by mutableStateOf("message")
+        rule.setContent { Gallery(setting, only = kind) }
+        for (k in listOf("message")) for (s in listOf(LIGHT, DARK, CONTRAST, CONTRAST_DARK, TEXT_200)) {
+            kind = k
+            setting = s
+            rule.waitForIdle()
+            rule.onNodeWithTag("gallery-$k").captureRoboImage("src/test/snapshots/$k-${s.id}.png")
         }
     }
 

@@ -272,7 +272,8 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroConversationList("Conversations", emptyList(), Modifier.testTag("conversation-list-case-empty-list"), empty = if (long) LONG else "No conversations yet")
                     }
                 }
-                if (only == null || only == "message") {
+                // Chat kinds draw only on request: the all-in-one gallery is already as tall as the snapshot window.
+                if (only == "message") {
                     Column(Modifier.testTag("gallery-message"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         OuroMessage("Ana", if (long) LONG else "See you at noon.", Modifier.testTag("message-case-received"), time = "9:41")
                         OuroMessage("You", if (long) LONG else "On my way.", Modifier.testTag("message-case-own-failed"), role = OuroMessageRole.User, time = "9:42", failed = true)
