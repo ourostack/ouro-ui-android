@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.selection.toggleable
@@ -101,7 +101,7 @@ fun OuroReactionBar(
             ) {
                 Row(
                     Modifier
-                        .height(28.dp)
+                        .heightIn(min = 28.dp)
                         .background(fill, shape)
                         .border(if (focused) 2.dp else 1.dp, if (focused) OuroColor.push(c.ring, behind, line) else edge, shape)
                         .padding(horizontal = 8.dp),
@@ -125,7 +125,7 @@ fun OuroReactionBar(
             ) {
                 Box(
                     Modifier
-                        .height(28.dp)
+                        .heightIn(min = 28.dp)
                         .background(behind, shape)
                         .border(if (focused) 2.dp else 1.dp, if (focused) OuroColor.push(c.ring, behind, line) else edge, shape)
                         .padding(horizontal = 10.dp),
