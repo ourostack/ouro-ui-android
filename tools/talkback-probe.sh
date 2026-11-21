@@ -28,7 +28,8 @@ focus() { # <case> <content-desc prefix>
   adb shell am broadcast -a bot.ouro.shop.FOCUS -p bot.ouro.shop --es name "'$2'" > /dev/null; sleep 5
   spoken > "$EV/speech-$1.txt"; adb logcat -d | grep OuroFocus >> "$EV/focus-calls.txt"
 }
-focus header Recipe; focus sorted Serves; focus row "Herb salad"
+# the toggle leaves focus on the header, so read it last, after focus has moved away
+focus sorted Serves; focus row "Herb salad"; focus header Recipe
 adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
 check() { # <case> <expected phrase>
@@ -37,7 +38,7 @@ check() { # <case> <expected phrase>
 }
 check header "Recipe, Column heading"
 check sorted "Serves, sorted descending"
-check row "Herb salad, 10 min, 2"
+check row "Herb salad, 10 min, 2, Row 3"
 for f in header sorted row; do echo "== $f"; cat "$EV/speech-$f.txt"; done
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
 adb shell dumpsys accessibility | head -30 > "$EV/a11y.txt" 2>&1
