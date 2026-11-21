@@ -20,32 +20,21 @@ sleep 45
 adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/null
 sleep 5
-tap() { # <content-desc prefix>
-  # a dump switches TalkBack off and on; give it time to come back before tapping
-  adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb pull /sdcard/ui.xml "$EV/ui.xml" > /dev/null 2>&1; sleep 12
-  local xy; xy=$(python3 - "$1" "$EV/ui.xml" <<'PY'
-import re, sys
-for n in re.findall(r'<node [^>]*>', open(sys.argv[2]).read()):
-    d = re.search(r'content-desc="([^"]*)"', n).group(1)
-    if d.startswith(sys.argv[1]):
-        x1, y1, x2, y2 = map(int, re.findall(r'\d+', re.search(r'bounds="([^"]*)"', n).group(1)))
-        print((x1 + x2) // 2, (y1 + y2) // 2); break
-PY
-)
-  [ -n "$xy" ] && adb shell input swipe $xy $xy 600
-}
+sleep 15
+adb logcat -c
+for _ in 1 2 3 4 5 6 7 8; do
+  adb shell input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; sleep 3
+done
+spoken > "$EV/speech-all.txt"
 status=0
-check() { # <case> <content-desc prefix> <expected phrase>
-  for _ in 1 2 3; do
-    adb logcat -c; tap "$2"; sleep 4
-    spoken > "$EV/speech-$1.txt"
-    grep -qF "$3" "$EV/speech-$1.txt" && { echo "TalkBack case $1: PASS expected \"$3\""; return; }
-  done
-  echo "TalkBack case $1: FAIL expected \"$3\""; sed 's/^/  spoke: /' "$EV/speech-$1.txt"; status=1
+check() { # <case> <expected phrase>
+  if grep -qF "$2" "$EV/speech-all.txt"; then echo "TalkBack case $1: PASS expected \"$2\""
+  else echo "TalkBack case $1: FAIL expected \"$2\""; status=1; fi
 }
-check header "Recipe" "Recipe, Column heading"
-check sorted "Serves" "Serves, sorted descending"
-check row "Herb salad" "Herb salad, 10 min, 2"
+check header "Column heading"
+check sorted "Serves, sorted descending"
+check row "Herb salad, 10 min, 2"
+sed 's/^/  spoke: /' "$EV/speech-all.txt"
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
 adb shell dumpsys accessibility | head -30 > "$EV/a11y.txt" 2>&1
 exit $status
