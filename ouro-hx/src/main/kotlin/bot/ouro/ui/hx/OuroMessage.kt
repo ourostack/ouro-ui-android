@@ -103,11 +103,12 @@ fun OuroMessage(
         } else {
             if (header != null) BasicText(header, style = TextStyle(color = metaColor, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium))
             BoxWithConstraints(Modifier.fillMaxWidth()) {
+                val bubbleMax = maxWidth * 0.8f
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = if (own) Arrangement.End else Arrangement.Start) {
                     BasicText(
                         shown,
                         Modifier
-                            .widthIn(max = maxWidth * 0.8f)
+                            .widthIn(max = bubbleMax)
                             .background(fill, RoundedCornerShape(look.radius + 4.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         style = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 22.sp),
