@@ -11,8 +11,7 @@ adb shell settings put secure tts_default_synth bot.ouro.shop
 adb shell svc power stayon true; adb shell input keyevent KEYCODE_WAKEUP; adb shell wm dismiss-keyguard
 adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/null
 sleep 5
-adb logcat -c
-
+adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb pull /sdcard/ui.xml "$EV/ui.xml" > /dev/null 2>&1
 adb logcat -c
 SVC=com.android.talkback/com.google.android.marvin.talkback.TalkBackService
 adb shell settings put secure enabled_accessibility_services "$SVC"
@@ -23,7 +22,6 @@ adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/null
 sleep 5
 tap() { # <content-desc prefix>
-  adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; adb pull /sdcard/ui.xml "$EV/ui.xml" > /dev/null 2>&1
   local xy; xy=$(python3 - "$1" "$EV/ui.xml" <<'PY'
 import re, sys
 for n in re.findall(r'<node [^>]*>', open(sys.argv[2]).read()):
