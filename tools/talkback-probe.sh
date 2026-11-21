@@ -3,7 +3,7 @@ set -uo pipefail
 EV="${EV:-evidence}"; mkdir -p "$EV"
 for _ in $(seq 1 60); do adb shell cmd package resolve-activity --brief -c android.intent.category.HOME -a android.intent.action.MAIN > /dev/null 2>&1 && break; sleep 2; done
 sleep 20
-adb install -r "$RUNNER_TEMP/talkback.apk" > "$EV/install-talkback.txt" 2>&1
+adb install -r -g "$RUNNER_TEMP/talkback.apk" > "$EV/install-talkback.txt" 2>&1
 adb install -r samples/shop/build/outputs/apk/debug/shop-debug.apk > "$EV/install-shop.txt" 2>&1
 adb shell pm list packages | grep -iE "talkback" > "$EV/packages.txt" 2>&1
 adb shell pm list packages -f com.android.talkback >> "$EV/packages.txt" 2>&1
