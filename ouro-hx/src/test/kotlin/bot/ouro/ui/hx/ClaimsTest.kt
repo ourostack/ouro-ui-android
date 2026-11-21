@@ -40,7 +40,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "switch", "select", "field")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "switch", "select", "field")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -83,7 +83,7 @@ class ClaimsTest {
         "tabs" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Tab }
         "tab-bar", "sidebar" -> n.within().filter { it.config.contains(SemanticsActions.OnClick) }
         "item-group" -> listOf(n)
-        "swipe-actions" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
+        "swipe-actions", "reorderable" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
         else -> listOf(n)
     }
 
@@ -185,6 +185,10 @@ class ClaimsTest {
             // A group named by its label, and one menu button named for what it opens.
             "swipe-actions" -> n.name().isNotBlank() && controls(kind, n).let { cs ->
                 cs.size == 1 && cs.all { x -> x.config.contains(SemanticsActions.OnClick) && x.config.contains(SemanticsProperties.Focused) && x.name().isNotBlank() }
+            }
+            // A group named by its label, and a handle for each row, named "Reorder" and the row, that offers a press and focus.
+            "reorderable" -> n.name().isNotBlank() && controls(kind, n).let { cs ->
+                cs.size == n.report()["rows"]!!.toInt() && cs.all { x -> x.config.contains(SemanticsActions.OnClick) && x.config.contains(SemanticsProperties.Focused) && x.name().startsWith("Reorder ") }
             }
             // A collection named by its label, each row a collection item; or, with no rows, its message as plain text.
             "item-group" -> if (n.report()["empty"] == "true") role == null && !clickable && !focusable && n.words().isNotBlank()

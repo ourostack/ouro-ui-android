@@ -258,6 +258,18 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         ) { BasicText("Lunch plans", style = text) }
                     }
                 }
+                if (only == null || only == "reorderable") {
+                    val text = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)
+                    var order by remember { mutableStateOf(listOf("Intro", "Verse", "Chorus")) }
+                    val rows = order.mapIndexed { i, n -> OuroReorderRow(n, n) { BasicText(if (long && i == 0) LONG else n, style = text) } }
+                    Column(Modifier.testTag("gallery-reorderable"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        OuroReorderable("Playlist", rows, Modifier.testTag("reorderable-case-three-rows"), onReorder = { ids, _ -> order = ids })
+                        OuroReorderable(
+                            "Playlist", listOf("Intro", "Verse", "Chorus").map { n -> OuroReorderRow(n, n) { BasicText(n, style = text) } },
+                            Modifier.testTag("reorderable-case-locked"), disabledReason = "Sorted by date",
+                        )
+                    }
+                }
                 if (only == null || only == "tab-bar") {
                     val icon: @Composable () -> Unit = { Box(Modifier.size(24.dp).background(LocalOuroContentColor.current, androidx.compose.foundation.shape.CircleShape)) }
                     Column(Modifier.testTag("gallery-tab-bar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {

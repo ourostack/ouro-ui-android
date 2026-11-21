@@ -30,7 +30,7 @@ class ListCaseTest(private val id: String) {
         private val dir = File("../vendor/core/components")
 
         /** The list components whose cases this runs; each joins when its composable does. */
-        private val components = listOf("item-group", "swipe-actions")
+        private val components = listOf("item-group", "swipe-actions", "reorderable")
 
         @JvmStatic
         @ParameterizedRobolectricTestRunner.Parameters(name = "{0}")
@@ -80,12 +80,20 @@ class ListCaseTest(private val id: String) {
                     }
                 }
             }
+            "reorderable" -> {
+                val rows = slots.getString("rows").split(", ").map { n -> OuroReorderRow(n, n) { BasicText(n) } }
+                rule.setContent {
+                    OuroTheme(LIGHT.theme, dark = false, increasedContrast = false, reduceMotion = false) {
+                        OuroReorderable(props.getString("label"), rows, disabled = props.optBoolean("disabled"), disabledReason = props.optString("disabledReason").ifEmpty { null })
+                    }
+                }
+            }
             else -> error("no renderer for $name. Fix: add one to ListCaseTest.")
         }
         val root = rule.onAllNodes(kindIs(name)).fetchSemanticsNodes().single()
         val agent = case.getJSONObject("agent")
         // A collection is a group named by its label; a row is a listitem; plain words are text, never focusable.
-        val tree = if (name == "swipe-actions") {
+        val tree = if (name == "swipe-actions" || name == "reorderable") {
             JSONObject().put("role", "group").put("name", root.config.getOrNull(SemanticsProperties.ContentDescription)?.joinToString(" ") ?: "")
                 .put("focusable", false)
                 .put("children", org.json.JSONArray(root.children.map { ch ->
