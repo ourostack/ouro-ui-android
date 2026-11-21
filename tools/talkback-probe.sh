@@ -22,11 +22,13 @@ adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/nu
 sleep 5
 # a UI dump switches TalkBack off and on, which is what makes it start speaking
 adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; sleep 20
+{ adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp"; adb shell dumpsys activity activities | grep -E "topResumedActivity|ResumedActivity"; } > "$EV/focus.txt" 2>&1
 adb logcat -c
 for _ in 1 2 3 4 5 6 7 8; do
   adb shell input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; sleep 3
+  adb shell input swipe 800 1200 200 1200 120; sleep 3
 done
-spoken > "$EV/speech-all.txt"
+spoken > "$EV/speech-all.txt"; adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
 check() { # <case> <expected phrase>
   if grep -qF "$2" "$EV/speech-all.txt"; then echo "TalkBack case $1: PASS expected \"$2\""
