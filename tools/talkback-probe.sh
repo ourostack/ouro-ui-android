@@ -25,7 +25,7 @@ adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; sleep 20
 { adb shell dumpsys window | grep -E "mCurrentFocus|mFocusedApp"; adb shell dumpsys activity activities | grep -E "topResumedActivity|ResumedActivity"; } > "$EV/focus.txt" 2>&1
 focus() { # <case> <content-desc prefix>
   adb logcat -c
-  adb shell am broadcast -a bot.ouro.shop.FOCUS -p bot.ouro.shop --es name "$2" > /dev/null; sleep 5
+  adb shell am broadcast -a bot.ouro.shop.FOCUS -p bot.ouro.shop --es name "'$2'" > /dev/null; sleep 5
   spoken > "$EV/speech-$1.txt"; adb logcat -d | grep OuroFocus >> "$EV/focus-calls.txt"
 }
 focus header Recipe; focus sorted Serves; focus row "Herb salad"
