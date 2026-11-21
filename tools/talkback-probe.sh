@@ -20,7 +20,8 @@ sleep 45
 adb shell input keyevent KEYCODE_BACK; sleep 2
 adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/null
 sleep 5
-sleep 15
+# a UI dump switches TalkBack off and on, which is what makes it start speaking
+adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; sleep 20
 adb logcat -c
 for _ in 1 2 3 4 5 6 7 8; do
   adb shell input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT; sleep 3
