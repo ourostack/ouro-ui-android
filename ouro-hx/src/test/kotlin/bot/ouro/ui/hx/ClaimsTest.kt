@@ -53,10 +53,14 @@ class ClaimsTest {
     private var only by mutableStateOf<String?>(null)
     private var reopen by mutableIntStateOf(0)
 
+    // Chat kinds are drawn only on request (see Gallery), so a check on one starts from its own gallery.
+    private val chatKinds = setOf("message")
+    private var chat: String? = null
+
     private fun under(s: Setting, isLong: Boolean = false, just: String? = null) {
         setting = s
         long = isLong
-        only = just
+        only = just ?: chat
         rule.waitForIdle()
     }
 
@@ -366,6 +370,9 @@ class ClaimsTest {
         val rows = mutableListOf<Triple<String, String, Result>>()
         for (spec in specs.sortedBy { kit.indexOf(it.getString("name")) }) {
             val kind = spec.getString("name")
+            chat = if (kind in chatKinds) kind else null
+            only = chat
+            rule.waitForIdle()
             val claims = spec.getJSONArray("claims")
             for (i in 0 until claims.length()) {
                 val claim = claims.getString(i)
