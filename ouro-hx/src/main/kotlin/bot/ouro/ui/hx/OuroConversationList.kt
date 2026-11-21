@@ -182,7 +182,7 @@ private fun ConversationHeader(head: ConversationEntry.Head, index: Int, onToggl
             .heightIn(min = OuroMinTarget)
             .then(if (focused) Modifier.border(2.dp, c.ring, RoundedCornerShape(look.radius)) else Modifier)
             .focusable(interactionSource = interaction)
-            .pointerInput(head.section.id, head.open) { detectTapGestures(onTap = { toggle() }) }
+            .pointerInput(head.section.id, head.open, onToggle) { detectTapGestures(onTap = { toggle() }) }
             .onKeyEvent { ev -> (ev.type == KeyEventType.KeyDown && (ev.key == Key.Enter || ev.key == Key.Spacebar)).also { if (it) toggle() } }
             .semantics {
                 heading()
@@ -237,7 +237,7 @@ private fun ConversationRow(
                 .background(fill)
                 .then(if (focused) Modifier.border(2.dp, c.ring, RoundedCornerShape(look.radius)) else Modifier)
                 .focusable(interactionSource = interaction)
-                .pointerInput(chat.id) { detectTapGestures(onPress = { pressed = true; tryAwaitRelease(); pressed = false }, onTap = { onSelect(chat.id) }) }
+                .pointerInput(chat.id, onSelect) { detectTapGestures(onPress = { pressed = true; tryAwaitRelease(); pressed = false }, onTap = { onSelect(chat.id) }) }
                 .onKeyEvent { ev -> (ev.type == KeyEventType.KeyDown && (ev.key == Key.Enter || ev.key == Key.Spacebar)).also { if (it) onSelect(chat.id) } }
                 .clearAndSetSemantics {
                     contentDescription = spoken
@@ -274,7 +274,7 @@ private fun ConversationRow(
                 .size(OuroMinTarget)
                 .then(if (moreFocused) Modifier.border(2.dp, c.ring, RoundedCornerShape(look.radius)) else Modifier)
                 .focusable(interactionSource = moreInteraction)
-                .pointerInput(chat.id) { detectTapGestures(onTap = { onMore(chat.id) }) }
+                .pointerInput(chat.id, onMore) { detectTapGestures(onTap = { onMore(chat.id) }) }
                 .onKeyEvent { ev -> (ev.type == KeyEventType.KeyDown && (ev.key == Key.Enter || ev.key == Key.Spacebar)).also { if (it) onMore(chat.id) } }
                 .semantics {
                     role = Role.Button
