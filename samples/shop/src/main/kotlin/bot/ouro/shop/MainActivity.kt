@@ -122,7 +122,7 @@ class MainActivity : ComponentActivity() {
                     received.getStringExtra("name")?.let { focusNode(window.decorView, it) }
                 }
             }
-            registerReceiver(receiver, IntentFilter("bot.ouro.shop.FOCUS"), Context.RECEIVER_EXPORTED)
+            androidx.core.content.ContextCompat.registerReceiver(this, receiver, IntentFilter("bot.ouro.shop.FOCUS"), androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
         }
     }
 }

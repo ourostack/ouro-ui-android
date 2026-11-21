@@ -32,6 +32,7 @@ focus() { # <case> <content-desc prefix>
 focus sorted Serves; focus row "Herb salad"; focus header Recipe
 adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
+if grep -qE "no node|no root" "$EV/focus-calls.txt"; then echo "TalkBack focus hook found no node"; status=1; fi
 check() { # <case> <expected phrase>
   if grep -qF "$2" "$EV/speech-$1.txt"; then echo "TalkBack case $1: PASS expected \"$2\""
   else echo "TalkBack case $1: FAIL expected \"$2\""; status=1; fi
