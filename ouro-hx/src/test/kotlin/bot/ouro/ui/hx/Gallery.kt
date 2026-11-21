@@ -280,6 +280,18 @@ fun Gallery(setting: Setting, only: String? = null, long: Boolean = false, reope
                         OuroMessage("Ouro", if (long) LONG else "Ana joined the conversation.", Modifier.testTag("message-case-system"), role = OuroMessageRole.System)
                     }
                 }
+                if (only == "reaction-bar") {
+                    Column(Modifier.testTag("gallery-reaction-bar"), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                        val like = OuroReaction("like", "👍", "Like", 3, mine = true)
+                        val love = OuroReaction("heart", "❤️", "Love", 1)
+                        OuroReactionBar(
+                            if (long) listOf(like, love, OuroReaction("laugh", "😂", "Laugh", 12), OuroReaction("wow", "😮", "Wow", 4)) else listOf(like, love),
+                            onReact = {}, modifier = Modifier.testTag("reaction-bar-case-two-reactions"),
+                        )
+                        OuroReactionBar(listOf(OuroReaction("like", "👍", "Like", 2)), onReact = {}, modifier = Modifier.testTag("reaction-bar-case-with-add"), showMore = true)
+                        OuroReactionBar(listOf(OuroReaction("like", "👍", "Like", 2)), onReact = {}, modifier = Modifier.testTag("reaction-bar-case-disabled"), disabled = true)
+                    }
+                }
                 if (only == null || only == "reorderable") {
                     val text = TextStyle(color = LocalOuroContentColor.current, fontSize = 16.sp)
                     var order by remember { mutableStateOf(listOf("Intro", "Verse", "Chorus")) }

@@ -40,7 +40,7 @@ class ClaimsTest {
     val rule = createComposeRule()
 
     /** The components this kit ships. Core specs more; each joins here when its composable does, with a check per claim. */
-    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field", "message")
+    private val kit = listOf("button", "badge", "card", "item", "checkbox", "text-field", "separator", "description-list", "dialog", "sheet", "confirm-dialog", "tabs", "tab-bar", "sidebar", "item-group", "swipe-actions", "reorderable", "conversation-list", "switch", "select", "field", "message", "reaction-bar")
 
     private class Result(val ok: Boolean?, val detail: String)
 
@@ -54,7 +54,7 @@ class ClaimsTest {
     private var reopen by mutableIntStateOf(0)
 
     // Chat kinds are drawn only on request (see Gallery), so a check on one starts from its own gallery.
-    private val chatKinds = setOf("message")
+    private val chatKinds = setOf("message", "reaction-bar")
     private var chat: String? = null
 
     private fun under(s: Setting, isLong: Boolean = false, just: String? = null) {
@@ -90,6 +90,7 @@ class ClaimsTest {
         "conversation-list" -> if (n.report()["empty"] == "true") listOf(n) else n.within().filter { it.config.contains(SemanticsActions.OnClick) }
         "swipe-actions", "reorderable" -> n.within().filter { it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
         "message" -> emptyList()
+        "reaction-bar" -> n.within().filter { it.config.contains(SemanticsProperties.ToggleableState) || it.config.getOrNull(SemanticsProperties.Role) == Role.Button }
         else -> listOf(n)
     }
 
@@ -206,6 +207,14 @@ class ClaimsTest {
             }
             // One node: the phrase "author, time, text, state" as its description, with nothing to press or focus.
             "message" -> role == null && !clickable && !focusable && n.name() == n.report()["spoken"] && n.name().isNotBlank()
+            // A group named by its label; each pill a checkbox-role toggle named "Like, 3" (or the add button), pressable unless disabled.
+            "reaction-bar" -> n.name() == n.report()["spoken"] && controls(kind, n).let { cs ->
+                cs.isNotEmpty() && cs.all { x ->
+                    val pill = x.config.contains(SemanticsProperties.ToggleableState)
+                    x.name().isNotBlank() && (!pill || (x.config.getOrNull(SemanticsProperties.Role) == Role.Checkbox && Regex(".+, \\d+").matches(x.name()))) &&
+                        (n.report()["disabled"] == "true" || (x.config.contains(SemanticsActions.OnClick) && x.config.contains(SemanticsProperties.Focused)))
+                }
+            }
             // A collection named by its label, each row a collection item; or, with no rows, its message as plain text.
             "item-group" -> if (n.report()["empty"] == "true") role == null && !clickable && !focusable && n.words().isNotBlank()
             else c.contains(SemanticsProperties.CollectionInfo) && (n.report()["labelled"] != "true" || n.name().isNotBlank()) &&
@@ -226,8 +235,9 @@ class ClaimsTest {
     /** The colour pairs each component's words sit on, from its report. */
     private fun pairs(r: Map<String, String>): List<Triple<String, String, String>> {
         val behind = r["behind"] ?: r["surface"]!!
-        return listOf("label", "title", "text", "description", "error", "term", "details", "selected", "unselected", "section").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } } +
+        return listOf("label", "title", "text", "description", "error", "term", "details", "selected", "unselected", "section", "count").mapNotNull { k -> r[k]?.let { Triple(k, it, behind) } } +
             listOfNotNull(r["current"]?.let { c -> r["wash"]?.let { Triple("current", c, it) } }) +
+            listOfNotNull(r["mineText"]?.let { t -> r["mineFill"]?.let { Triple("mineText", t, it) } }) +
             // Words that sit on the page beside a bubble, not on it.
             listOf("meta", "state").mapNotNull { k -> r[k]?.let { Triple(k, it, r["surface"]!!) } } +
             listOfNotNull(r["badge"]?.let { c -> r["badgeWash"]?.let { Triple("badge", c, it) } })
