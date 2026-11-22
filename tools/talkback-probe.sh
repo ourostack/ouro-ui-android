@@ -33,12 +33,14 @@ focus sorted Serves; focus row "Herb salad"; focus header Recipe
 # TalkBack's own next/previous, from a person's input: which input moves its focus on the emulator
 walk() { # <driver> <steps> <command...>
   d=$1; n=$2; shift 2
-  focus "start-$d" Recipe
+  focus "other-$d" "Herb salad"; focus "start-$d" Recipe
   for i in $(seq 1 "$n"); do
     adb logcat -c; adb shell "$@" > "$EV/drive-$d-$i.txt" 2>&1; sleep 4
     spoken > "$EV/nav-$d-$i.txt"
+    adb logcat -c; adb shell am broadcast -a bot.ouro.shop.WHERE -p bot.ouro.shop > /dev/null; sleep 1
+    adb logcat -d | grep OuroWhere | sed 's/.*OuroWhere: //' > "$EV/where-$d-$i.txt"
   done
-  echo "== walk $d"; for i in $(seq 1 "$n"); do echo "step $i: $(tr '\n' '|' < "$EV/nav-$d-$i.txt")"; done
+  echo "== walk $d"; for i in $(seq 1 "$n"); do echo "step $i: focus=$(cat "$EV/where-$d-$i.txt") speech=$(tr '\n' '|' < "$EV/nav-$d-$i.txt")"; done
 }
 walk altkeys 4 input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT
 walk metakeys 4 input keycombination KEYCODE_META_LEFT KEYCODE_DPAD_RIGHT
@@ -56,5 +58,5 @@ check sorted "Serves, sorted descending"
 check row "Herb salad, 10 min, 2, Row 3"
 for f in header sorted row; do echo "== $f"; cat "$EV/speech-$f.txt"; done
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
-adb shell dumpsys accessibility | head -30 > "$EV/a11y.txt" 2>&1
+adb shell dumpsys input | grep -iE "keyboard|Device [0-9-]+:" | head -30 > "$EV/a11y.txt"; adb shell dumpsys activity service com.android.talkback/com.google.android.marvin.talkback.TalkBackService | head -80 >> "$EV/a11y.txt"; adb shell dumpsys accessibility | head -30 >> "$EV/a11y.txt" 2>&1
 exit $status
