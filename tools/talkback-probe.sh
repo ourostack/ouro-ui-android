@@ -13,7 +13,7 @@ adb shell am start -W -n bot.ouro.shop/.MainActivity --es screen table > /dev/nu
 sleep 5
 adb logcat -c
 SVC=com.android.talkback/com.google.android.marvin.talkback.TalkBackService
-adb shell settings put secure enabled_accessibility_services "$SVC"
+adb shell settings put secure enabled_accessibility_services "$SVC:bot.ouro.shop/bot.ouro.shop.speech.SwipeService"
 adb shell settings put secure accessibility_enabled 1
 spoken() { adb logcat -d | grep OuroSpoken | sed 's/.*OuroSpoken: //'; }
 sleep 45
@@ -26,7 +26,7 @@ adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; sleep 20
 focus() { # <case> <content-desc prefix>
   adb logcat -c
   adb shell am broadcast -a bot.ouro.shop.FOCUS -p bot.ouro.shop --es name "'$2'" > /dev/null; sleep 5
-  spoken > "$EV/speech-$1.txt"; adb logcat -d | grep OuroFocus >> "$EV/focus-calls.txt"
+  spoken > "$EV/speech-$1.txt"; adb logcat -d | grep -E "OuroFocus|OuroSwipe" >> "$EV/focus-calls.txt"
 }
 # the toggle leaves focus on the header, so read it last, after focus has moved away
 focus sorted Serves; focus row "Herb salad"; focus header Recipe
@@ -42,12 +42,7 @@ walk() { # <driver> <steps> <command...>
   done
   echo "== walk $d"; for i in $(seq 1 "$n"); do echo "step $i: focus=$(cat "$EV/where-$d-$i.txt") speech=$(tr '\n' '|' < "$EV/nav-$d-$i.txt")"; done
 }
-walk altkeys 2 input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT
-walk metakeys 2 input keycombination KEYCODE_META_LEFT KEYCODE_DPAD_RIGHT
-walk swipe 3 input swipe 200 1200 900 1200 120
-walk slowswipe 3 input touchscreen swipe 200 1500 900 1500 400
-walk motion 3 'input motionevent DOWN 200 1500; sleep 0.05; input motionevent MOVE 400 1500; sleep 0.05; input motionevent MOVE 700 1500; sleep 0.05; input motionevent UP 900 1500'
-walk dpad 3 input keyevent KEYCODE_DPAD_RIGHT
+walk dispatched 4 am broadcast -a bot.ouro.shop.SWIPE -p bot.ouro.shop --es dir next
 adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
 if grep -qE "no node|no root" "$EV/focus-calls.txt"; then echo "TalkBack focus hook found no node"; status=1; fi
