@@ -31,7 +31,7 @@ focus() { # <case> <content-desc prefix>
 # the toggle leaves focus on the header, so read it last, after focus has moved away
 focus sorted Serves; focus row "Herb salad"; focus header Recipe
 # TalkBack's own next and previous: a swipe the debug accessibility service dispatches, which TalkBack reads as a finger's
-focus other Herb salad; focus start Recipe
+focus other "Herb salad"; focus start Recipe
 swipe() { # <n> <next|previous>
   adb logcat -c; adb shell am broadcast -a bot.ouro.shop.SWIPE -p bot.ouro.shop --es dir "$2" > /dev/null; sleep 4
   spoken > "$EV/nav-$1.txt"; adb logcat -d | grep OuroSwipe >> "$EV/focus-calls.txt"
