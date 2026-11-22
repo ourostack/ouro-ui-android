@@ -36,16 +36,18 @@ walk() { # <driver> <steps> <command...>
   focus "other-$d" "Herb salad"; focus "start-$d" Recipe
   for i in $(seq 1 "$n"); do
     adb logcat -c; adb shell "$@" > "$EV/drive-$d-$i.txt" 2>&1; sleep 4
-    spoken > "$EV/nav-$d-$i.txt"
+    spoken > "$EV/nav-$d-$i.txt"; adb logcat -d | grep -vE "Wifi|adbd|logd" > "$EV/log-$d-$i.txt"
     adb logcat -c; adb shell am broadcast -a bot.ouro.shop.WHERE -p bot.ouro.shop > /dev/null; sleep 1
     adb logcat -d | grep OuroWhere | sed 's/.*OuroWhere: //' > "$EV/where-$d-$i.txt"
   done
   echo "== walk $d"; for i in $(seq 1 "$n"); do echo "step $i: focus=$(cat "$EV/where-$d-$i.txt") speech=$(tr '\n' '|' < "$EV/nav-$d-$i.txt")"; done
 }
-walk altkeys 4 input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT
-walk metakeys 4 input keycombination KEYCODE_META_LEFT KEYCODE_DPAD_RIGHT
-walk swipe 4 input swipe 200 1200 900 1200 120
-walk dpad 4 input keyevent KEYCODE_DPAD_RIGHT
+walk altkeys 2 input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT
+walk metakeys 2 input keycombination KEYCODE_META_LEFT KEYCODE_DPAD_RIGHT
+walk swipe 3 input swipe 200 1200 900 1200 120
+walk slowswipe 3 input touchscreen swipe 200 1500 900 1500 400
+walk motion 3 'input motionevent DOWN 200 1500; sleep 0.05; input motionevent MOVE 400 1500; sleep 0.05; input motionevent MOVE 700 1500; sleep 0.05; input motionevent UP 900 1500'
+walk dpad 3 input keyevent KEYCODE_DPAD_RIGHT
 adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
 if grep -qE "no node|no root" "$EV/focus-calls.txt"; then echo "TalkBack focus hook found no node"; status=1; fi
