@@ -24,8 +24,12 @@ class SwipeService : AccessibilityService() {
             }
             val stroke = GestureDescription.StrokeDescription(path, 0, 200)
             val sent = dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), object : GestureResultCallback() {
-                override fun onCompleted(gesture: GestureDescription) = Log.i("OuroSwipe", "completed")
-                override fun onCancelled(gesture: GestureDescription) = Log.i("OuroSwipe", "cancelled")
+                override fun onCompleted(gesture: GestureDescription) {
+                    Log.i("OuroSwipe", "completed")
+                }
+                override fun onCancelled(gesture: GestureDescription) {
+                    Log.i("OuroSwipe", "cancelled")
+                }
             }, null)
             Log.i("OuroSwipe", "dispatched=$sent next=$next")
         }
