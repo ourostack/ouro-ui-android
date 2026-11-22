@@ -26,23 +26,18 @@ adb shell uiautomator dump /sdcard/ui.xml > /dev/null 2>&1; sleep 20
 focus() { # <case> <content-desc prefix>
   adb logcat -c
   adb shell am broadcast -a bot.ouro.shop.FOCUS -p bot.ouro.shop --es name "'$2'" > /dev/null; sleep 5
-  spoken > "$EV/speech-$1.txt"; adb logcat -d | grep -E "OuroFocus|OuroSwipe" >> "$EV/focus-calls.txt"
+  spoken > "$EV/speech-$1.txt"; adb logcat -d | grep -E OuroFocus >> "$EV/focus-calls.txt"
 }
 # the toggle leaves focus on the header, so read it last, after focus has moved away
 focus sorted Serves; focus row "Herb salad"; focus header Recipe
-# TalkBack's own next/previous, from a person's input: which input moves its focus on the emulator
-walk() { # <driver> <steps> <command...>
-  d=$1; n=$2; shift 2
-  focus "other-$d" "Herb salad"; focus "start-$d" Recipe
-  for i in $(seq 1 "$n"); do
-    adb logcat -c; adb shell "$@" > "$EV/drive-$d-$i.txt" 2>&1; sleep 4
-    spoken > "$EV/nav-$d-$i.txt"; adb logcat -d | grep -vE "Wifi|adbd|logd" > "$EV/log-$d-$i.txt"
-    adb logcat -c; adb shell am broadcast -a bot.ouro.shop.WHERE -p bot.ouro.shop > /dev/null; sleep 1
-    adb logcat -d | grep OuroWhere | sed 's/.*OuroWhere: //' > "$EV/where-$d-$i.txt"
-  done
-  echo "== walk $d"; for i in $(seq 1 "$n"); do echo "step $i: focus=$(cat "$EV/where-$d-$i.txt") speech=$(tr '\n' '|' < "$EV/nav-$d-$i.txt")"; done
+# TalkBack's own next and previous: a swipe the debug accessibility service dispatches, which TalkBack reads as a finger's
+focus other Herb salad; focus start Recipe
+swipe() { # <n> <next|previous>
+  adb logcat -c; adb shell am broadcast -a bot.ouro.shop.SWIPE -p bot.ouro.shop --es dir "$2" > /dev/null; sleep 4
+  spoken > "$EV/nav-$1.txt"; adb logcat -d | grep OuroSwipe >> "$EV/focus-calls.txt"
 }
-walk dispatched 4 am broadcast -a bot.ouro.shop.SWIPE -p bot.ouro.shop --es dir next
+steps=(next next next next next previous previous)
+for i in "${!steps[@]}"; do swipe "$((i + 1))" "${steps[$i]}"; done
 adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
 if grep -qE "no node|no root" "$EV/focus-calls.txt"; then echo "TalkBack focus hook found no node"; status=1; fi
@@ -53,6 +48,18 @@ check() { # <case> <expected phrase>
 check header "Recipe, Column heading"
 check sorted "Serves, sorted descending"
 check row "Herb salad, 10 min, 2, Row 3"
+# reading order: header cells, then the rows, newest sort first
+checknav() { # <n> <expected phrase>
+  if grep -qF "$2" "$EV/nav-$1.txt"; then echo "TalkBack case swipe-$1 (${steps[$(($1 - 1))]}): PASS expected \"$2\""
+  else echo "TalkBack case swipe-$1 (${steps[$(($1 - 1))]}): FAIL expected \"$2\""; status=1; fi
+}
+checknav 1 "Time, Column heading"
+checknav 2 "Serves, sorted descending"
+checknav 3 "Rye bread, 18 h, 8, Row 2"
+checknav 4 "Herb salad, 10 min, 2, Row 3"
+checknav 5 "Braised short ribs"
+checknav 6 "Herb salad, 10 min, 2, Row 3"
+checknav 7 "Rye bread, 18 h, 8, Row 2"
 for f in header sorted row; do echo "== $f"; cat "$EV/speech-$f.txt"; done
 adb logcat -d > "$EV/logcat-full.txt" 2>&1
 adb shell dumpsys input | grep -iE "keyboard|Device [0-9-]+:" | head -30 > "$EV/a11y.txt"; adb shell dumpsys activity service com.android.talkback/com.google.android.marvin.talkback.TalkBackService | head -80 >> "$EV/a11y.txt"; adb shell dumpsys accessibility | head -30 >> "$EV/a11y.txt" 2>&1

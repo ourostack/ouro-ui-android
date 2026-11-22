@@ -119,23 +119,12 @@ class MainActivity : ComponentActivity() {
         if (intent.getStringExtra("screen") == "table" && (applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0) {
             val receiver = object : BroadcastReceiver() {
                 override fun onReceive(context: Context, received: Intent) {
-                    if (received.action == "bot.ouro.shop.WHERE") whereFocus(window.decorView)
-                    else received.getStringExtra("name")?.let { focusNode(window.decorView, it) }
+                    received.getStringExtra("name")?.let { focusNode(window.decorView, it) }
                 }
             }
-            val filter = IntentFilter("bot.ouro.shop.FOCUS").apply { addAction("bot.ouro.shop.WHERE") }
-            androidx.core.content.ContextCompat.registerReceiver(this, receiver, filter, androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
+            androidx.core.content.ContextCompat.registerReceiver(this, receiver, IntentFilter("bot.ouro.shop.FOCUS"), androidx.core.content.ContextCompat.RECEIVER_EXPORTED)
         }
     }
-}
-
-@OptIn(InternalComposeUiApi::class)
-private fun whereFocus(decor: View) {
-    fun root(view: View): RootForTest? =
-        view as? RootForTest ?: (view as? ViewGroup)?.let { group -> (0 until group.childCount).firstNotNullOfOrNull { root(group.getChildAt(it)) } }
-    val host = root(decor) as? View ?: run { android.util.Log.i("OuroWhere", "no root"); return }
-    val info = host.accessibilityNodeProvider?.findFocus(AccessibilityNodeInfo.FOCUS_ACCESSIBILITY)
-    android.util.Log.i("OuroWhere", "${info?.contentDescription ?: info?.text ?: "nothing"}")
 }
 
 @OptIn(InternalComposeUiApi::class)
