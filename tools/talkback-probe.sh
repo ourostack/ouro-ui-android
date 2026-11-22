@@ -30,6 +30,20 @@ focus() { # <case> <content-desc prefix>
 }
 # the toggle leaves focus on the header, so read it last, after focus has moved away
 focus sorted Serves; focus row "Herb salad"; focus header Recipe
+# TalkBack's own next/previous, from a person's input: which input moves its focus on the emulator
+walk() { # <driver> <steps> <command...>
+  d=$1; n=$2; shift 2
+  focus "start-$d" Recipe
+  for i in $(seq 1 "$n"); do
+    adb logcat -c; adb shell "$@" > "$EV/drive-$d-$i.txt" 2>&1; sleep 4
+    spoken > "$EV/nav-$d-$i.txt"
+  done
+  echo "== walk $d"; for i in $(seq 1 "$n"); do echo "step $i: $(tr '\n' '|' < "$EV/nav-$d-$i.txt")"; done
+}
+walk altkeys 4 input keycombination KEYCODE_ALT_LEFT KEYCODE_DPAD_RIGHT
+walk metakeys 4 input keycombination KEYCODE_META_LEFT KEYCODE_DPAD_RIGHT
+walk swipe 4 input swipe 200 1200 900 1200 120
+walk dpad 4 input keyevent KEYCODE_DPAD_RIGHT
 adb logcat -d | grep -iE "talkback|accessib" | cut -c1-240 > "$EV/tb-log.txt"
 status=0
 if grep -qE "no node|no root" "$EV/focus-calls.txt"; then echo "TalkBack focus hook found no node"; status=1; fi
