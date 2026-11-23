@@ -6,6 +6,8 @@
 
 # Ouro UI for Android
 
+Ouro HX and Ouro AX for Android, part of [Ouro UI](https://ui.ouroboros.bot/).
+
 Ouro UI's native kit for Android: core's components in Jetpack Compose for people, and AppFunctions for agents, both from [ouro-ui-core](https://github.com/ourostack/ouro-ui-core)'s one `defineAction` declaration. The X-ray checks that what agents can call and what people can press agree.
 
 The plan is core's [native-kits decision](https://github.com/ourostack/ouro-ui-core/blob/main/docs/decisions/2026-11-14-native-kits.md) and its [Android record](https://github.com/ourostack/ouro-ui-core/blob/main/docs/decisions/2026-11-14-android-kit.md). There is one Compose kit, component specs are vendored from core by hash, and only the rendering is written here.
