@@ -73,12 +73,12 @@ dependencyResolutionManagement {
     }
 }
 // build.gradle.kts
-dependencies { implementation("bot.ouro.ui:ouro-hx:0.12.0") }
+dependencies { implementation("bot.ouro.ui:ouro-hx:0.12.1") }
 ```
 
 Each file on Maven Central carries a signature from the release key in [docs/signing-key.asc](docs/signing-key.asc) (fingerprint `1FAE E44D 0235 4B8B 7AC2  72B7 1801 CC31 80C7 0262`).
 
-From v0.5.0 on, [the release workflow](.github/workflows/release.yml) gives each file it attaches a GitHub build attestation, so you can check that a library was built from its tag: `gh attestation verify ouro-hx-0.12.0.aar --repo ourostack/ouro-ui-android`.
+From v0.5.0 on, [the release workflow](.github/workflows/release.yml) gives each file it attaches a GitHub build attestation, so you can check that a library was built from its tag: `gh attestation verify ouro-hx-0.12.1.aar --repo ourostack/ouro-ui-android`.
 
 ```kotlin
 OuroTheme(OuroThemeName.Pearl, dark = isSystemInDarkTheme()) {
