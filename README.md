@@ -62,6 +62,8 @@ The maintainer owns no Android phone or tablet. Everything in this repository is
 
 ## Use it
 
+Each release is published, signed, to Maven Central as `bot.ouro.ui:ouro-hx` and `bot.ouro.ui:ouro-actions`, so `mavenCentral()` is all an app needs once a release is there. Every release, including those from before Maven Central, is also on the kit's own Maven repository on GitHub Pages, which needs no sign-in either; keep that line until [Central lists the version you use](https://central.sonatype.com/namespace/bot.ouro.ui).
+
 ```kotlin
 // settings.gradle.kts
 dependencyResolutionManagement {
@@ -73,6 +75,8 @@ dependencyResolutionManagement {
 // build.gradle.kts
 dependencies { implementation("bot.ouro.ui:ouro-hx:0.12.0") }
 ```
+
+Each file on Maven Central carries a signature from the release key in [docs/signing-key.asc](docs/signing-key.asc) (fingerprint `1FAE E44D 0235 4B8B 7AC2  72B7 1801 CC31 80C7 0262`).
 
 From v0.5.0 on, [the release workflow](.github/workflows/release.yml) gives each file it attaches a GitHub build attestation, so you can check that a library was built from its tag: `gh attestation verify ouro-hx-0.12.0.aar --repo ourostack/ouro-ui-android`.
 
