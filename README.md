@@ -62,14 +62,13 @@ The maintainer owns no Android phone or tablet. Everything in this repository is
 
 ## Use it
 
-Each release is published, signed, to Maven Central as `bot.ouro.ui:ouro-hx` and `bot.ouro.ui:ouro-actions`, so `mavenCentral()` is all an app needs once a release is there. Every release, including those from before Maven Central, is also on the kit's own Maven repository on GitHub Pages, which needs no sign-in either; keep that line until [Central lists the version you use](https://central.sonatype.com/namespace/bot.ouro.ui).
+Each release is published, signed, to [Maven Central](https://central.sonatype.com/namespace/bot.ouro.ui) as `bot.ouro.ui:ouro-hx` and `bot.ouro.ui:ouro-actions`, from v0.12.1 on, so `mavenCentral()` is all an app needs. Releases from before v0.12.1 stay on the kit's own Maven repository on GitHub Pages (`https://ourostack.github.io/ouro-ui-android/maven`); add that repository only to use one of them.
 
 ```kotlin
 // settings.gradle.kts
 dependencyResolutionManagement {
     repositories {
         google(); mavenCentral()
-        maven { url = uri("https://ourostack.github.io/ouro-ui-android/maven") }
     }
 }
 // build.gradle.kts
