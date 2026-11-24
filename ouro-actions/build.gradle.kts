@@ -38,6 +38,13 @@ publishing {
                 description.set("The runtime behind Ouro UI's actions on Android: a person's press and an agent's AppFunction call take one path, person-only actions refuse agents, and a consequential action asks the person first, with a built-in confirmation.")
                 url.set("https://github.com/ourostack/ouro-ui-android")
                 licenses { license { name.set("MIT"); url.set("https://opensource.org/licenses/MIT") } }
+                // Maven Central requires the developers and scm blocks (RELEASING.md).
+                developers { developer { id.set("arimendelow"); name.set("Ari Mendelow"); url.set("https://github.com/arimendelow") } }
+                scm {
+                    url.set("https://github.com/ourostack/ouro-ui-android")
+                    connection.set("scm:git:https://github.com/ourostack/ouro-ui-android.git")
+                    developerConnection.set("scm:git:ssh://git@github.com/ourostack/ouro-ui-android.git")
+                }
             }
         }
     }

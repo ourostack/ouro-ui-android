@@ -1,8 +1,9 @@
 name: Release
 
 # Push a tag vX.Y.Z that matches gradle.properties' ouro.version (RELEASING.md). This runs the tests, builds the
-# libraries' Maven files, attaches them to the GitHub release with the notes in docs/releases/vX.Y.Z.md, and publishes
-# every release's Maven files as a static Maven repository on GitHub Pages, which needs no sign-in to read.
+# libraries' Maven files, attaches them to the GitHub release with the notes in docs/releases/vX.Y.Z.md, publishes
+# them signed to Maven Central, and publishes every release's Maven files as a static Maven repository on GitHub
+# Pages, which needs no sign-in to read.
 # The Pages work is its own jobs, so a deploy that fails (GitHub has twice not shown the uploaded artifact to
 # deploy-pages in time, at v0.9.0 and v0.11.0) is rerun alone, without making the release again. Run the workflow by
 # hand on main to rebuild the site from the releases that exist and deploy it.
@@ -63,6 +64,36 @@ jobs:
               --notes-file "docs/releases/$GITHUB_REF_NAME.md" \
               "ouro-ui-android-$GITHUB_REF_NAME-maven.zip" ./*.aar ./*.pom
           fi
+
+  # Maven Central, from the Maven files the release attached. Its own job, so a failed upload reruns alone, and a version
+  # Central already has is skipped. The secrets are the release signing key (docs/signing-key.asc is its public half)
+  # and a Central Portal user token (RELEASING.md).
+  central:
+    needs: release
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v4
+      - name: The release's Maven files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release download "$GITHUB_REF_NAME" --pattern "ouro-ui-android-$GITHUB_REF_NAME-maven.zip" --dir in
+          unzip -q "in/ouro-ui-android-$GITHUB_REF_NAME-maven.zip" -d maven
+      - name: Sign every file, with checksums and a javadoc jar
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          scripts/central-bundle.sh maven central-bundle.zip
+      - name: Publish to Maven Central
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+        run: scripts/central-publish.sh central-bundle.zip "${GITHUB_REF_NAME#v}"
 
   # Every release's Maven files, as one repository. Runs after a release, or alone by hand.
   site:

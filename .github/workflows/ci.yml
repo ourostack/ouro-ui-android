@@ -87,6 +87,24 @@ jobs:
         run: node tools/case-results.mjs ouro-hx/build/test-results/*/TEST-bot.ouro.ui.hx.*CaseTest.xml | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Sample app and Maven files
         run: ./gradlew --no-daemon :samples:shop:assembleDebug publishAllPublicationsToBuildRepository
+      - name: The Maven Central bundle builds, and every file in it verifies (a throwaway key; releases sign with the real one)
+        run: |
+          export GNUPGHOME="$RUNNER_TEMP/gnupg"; mkdir -m 700 "$GNUPGHOME"
+          gpg --batch --passphrase ci --quick-gen-key "CI throwaway <ci@invalid>" ed25519 sign 1d
+          GPG_PASSPHRASE=ci scripts/central-bundle.sh build/maven "$RUNNER_TEMP/central-bundle.zip"
+          mkdir "$RUNNER_TEMP/bundle" && unzip -q "$RUNNER_TEMP/central-bundle.zip" -d "$RUNNER_TEMP/bundle" && cd "$RUNNER_TEMP/bundle"
+          for f in $(find . -type f ! -name '*.asc' ! -name '*.md5' ! -name '*.sha1' ! -name '*.sha256' ! -name '*.sha512'); do
+            gpg --batch --verify "$f.asc" "$f" 2> /dev/null || { echo "::error::$f has no good signature"; exit 1; }
+            test "$(openssl sha1 -r "$f" | cut -d' ' -f1)" = "$(cat "$f.sha1")" || { echo "::error::$f's .sha1 is wrong"; exit 1; }
+            test -f "$f.md5" || { echo "::error::$f has no .md5"; exit 1; }
+          done
+          for pom in $(find . -name '*.pom'); do
+            for tag in name description url licenses developers scm; do
+              grep -q "<$tag>" "$pom" || { echo "::error::$pom has no <$tag>, which Maven Central requires"; exit 1; }
+            done
+            test -f "${pom%.pom}-javadoc.jar" && test -f "${pom%.pom}-sources.jar" || { echo "::error::$pom lacks a javadoc or sources jar"; exit 1; }
+          done
+          echo "Every file is signed and has checksums; every POM has what Maven Central requires."
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:
